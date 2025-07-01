@@ -51,6 +51,7 @@ git clone https://github.com/your-username/iNomad.git
 cd iNomad
 npm install
 npx expo start
+```
 
 
 
