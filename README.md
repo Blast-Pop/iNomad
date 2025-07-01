@@ -51,3 +51,19 @@ git clone https://github.com/your-username/iNomad.git
 cd iNomad
 npm install
 npx expo start
+
+
+
+📄 License
+This project is licensed under the
+Creative Commons Attribution-NonCommercial 4.0 International.
+
+You are free to use, modify, and share this code for non-commercial purposes only.
+For commercial use, please contact the author directly.
+
+
+☕ Support
+If you like this project or want to support development:
+→ Follow the dev on GitHub: @Blast-Pop
+
+<div align="center"> <sub>© 2025 Blast-Pop. All rights reserved.</sub> </div> 
