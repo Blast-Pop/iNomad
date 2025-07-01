@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.png" alt="iNomad Logo" width="200"/>
+  <img src="assets/icon.png" alt="iNomad Logo" width="200"/>
   <h1>iNomad</h1>
   <p><i>A smart traveling app for fishing spots, trails and wild places.</i></p>
 </div>
