@@ -24,7 +24,7 @@
       "package": "com.blastpop.iNomad",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyDZXp9xqMOaQqLSaGV9B_G5bwQk_fy3TEg"
+          "apiKey": "GOOGLE API"
         }
       }
     },
