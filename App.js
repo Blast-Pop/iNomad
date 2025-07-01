@@ -10,6 +10,7 @@ import { getPrivateSpots } from './storage/asyncStorage';
 import useLocationTracking from './hooks/useLocationTracking';
 import AddSpotModal from './components/AddSpotModal';
 import SpotDetailsModal from './components/SpotDetailsModal';
+import { SafeAreaView } from 'react-native';
 
 export default function App() {
   const [screen, setScreen] = useState('home'); // home | login | register
@@ -49,10 +50,12 @@ export default function App() {
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      setHasPermission(status === 'granted');
-      if (!hasPermission) {
-        Alert.alert("Permission requise", "Active ta localisation pour voir la carte.");
-      }
+        if (status !== 'granted') {
+          Alert.alert("Permission requise", "Active ta localisation pour voir la carte.");
+          return;
+        }
+        setHasPermission(true);
+
     })();
   }, []);
 
@@ -121,12 +124,14 @@ export default function App() {
 
   if (!user) {
     return (
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={[styles.container, { justifyContent: 'center', flex: 1 }]}>
         {screen === 'home' && (
           <>
             <Text style={styles.title}>Bienvenue sur iNomad</Text>
+            <View style={{ gap: 12 }}>
             <Button title="Connexion" onPress={() => setScreen('login')} />
             <Button title="Inscription" onPress={() => setScreen('register')} />
+            </View>
           </>
         )}
 
@@ -169,7 +174,7 @@ export default function App() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeContainer}>
       <Button title="Déconnexion" onPress={handleLogout} />
 
       {hasPermission && location && (
@@ -197,6 +202,8 @@ export default function App() {
                 setSelectedSpot(spot);
                 setSpotModalVisible(true);
               }}
+              calloutAnchor={{ x: 0, y: 0 }}
+              tracksViewChanges={false}
             />
           ))}
         </MapView>
@@ -221,12 +228,13 @@ export default function App() {
           />
         </Modal>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 10 },
+  safeContainer: { flex: 1, backgroundColor: '#fff' }, // ✅ AJOUTÉ
   title: { fontSize: 22, marginBottom: 20, textAlign: 'center' },
   input: { borderBottomWidth: 1, padding: 6, width: '100%', marginBottom: 12 },
   switchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },

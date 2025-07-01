@@ -95,8 +95,11 @@ export default function AddSpotModal({ coords, onClose, onRefresh }) {
         <Text>Spot public ?</Text>
         <Switch value={isPublic} onValueChange={setIsPublic} />
       </View>
+      <View style={styles.buttonRow}>
       <Button title="Enregistrer" onPress={handleSave} />
       <Button title="Annuler" onPress={onClose} color="red" />
+    </View>
+
     </View>
   );
 }
@@ -134,5 +137,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15
-  }
+  },
+  buttonRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  gap: 10,
+  marginTop: 15,
+}
+
 });
