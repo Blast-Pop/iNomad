@@ -6,36 +6,26 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "ios": {
-      "supportsTablet": true
-    },
+    "assetBundlePatterns": ["**/*"],
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.blastpop.iNomad",
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyDZXp9xqMOaQqLSaGV9B_G5bwQk_fy3TEg"
         }
+      },
+      "package": "com.nomadfisher.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.nomadfisher.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyDZXp9xqMOaQqLSaGV9B_G5bwQk_fy3TEg"
       }
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "e1afbee3-f38d-4c36-992d-7920574c3587"
-      }
-    },
-    "owner": "blast-pop"
+    "plugins": ["expo-location"]
   }
 }

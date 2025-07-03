@@ -21,11 +21,29 @@ export default function App() {
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const u = await getUser();
-      if (u) setUser(u);
-    })();
-  }, []);
+  (async () => {
+    // Force la récupération de session persistée
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log("📦 Session récupérée au démarrage :", sessionData.session);
+
+    if (!sessionData.session) {
+      console.log("❌ Aucune session trouvée");
+      setUser(null);
+      return;
+    }
+
+    const { data: userData, error } = await supabase.auth.getUser();
+
+    if (error || !userData?.user) {
+      console.log("❌ Erreur récupération utilisateur :", error);
+      setUser(null);
+      return;
+    }
+
+    console.log("✅ Utilisateur connecté :", userData.user.email);
+    setUser(userData.user);
+  })();
+}, []);
 
   const handleLogin = async () => {
     if (!email || !password) return alert('Champs requis');

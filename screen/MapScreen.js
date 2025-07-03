@@ -5,6 +5,8 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AddSpotModal from '../components/AddSpotModal';
 import { getUser, getPublicSpots, addPublicSpot } from '../lib/supabaseClient';
+import { MaterialIcons } from '@expo/vector-icons';
+
 
 export default function MapScreen() {
   const [location, setLocation] = useState(null);
@@ -19,6 +21,23 @@ export default function MapScreen() {
   const [spotModalVisible, setSpotModalVisible] = useState(false);
 
   const mapRef = useRef(null);
+
+  const focusOnUserLocation = async () => {
+  const loc = await Location.getCurrentPositionAsync({});
+  setRegion({
+    latitude: loc.coords.latitude,
+    longitude: loc.coords.longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
+  mapRef.current?.animateToRegion({
+    latitude: loc.coords.latitude,
+    longitude: loc.coords.longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
+};
+
 
   useEffect(() => {
     (async () => {
@@ -36,7 +55,7 @@ export default function MapScreen() {
         longitudeDelta: 0.01,
       });
       const user = await getUser();
-      console.log('🔐 Utilisateur actuel :', user);
+      console.log('\uD83D\uDD10 Utilisateur actuel :', user);
       if (user) setUserEmail(user.email);
       fetchPublicSpots();
       fetchPrivateSpots();
@@ -76,6 +95,7 @@ export default function MapScreen() {
 
   const handleAddSpot = async (data, isPublic) => {
     if (!newSpotCoords) return;
+
     const spot = {
       name: data.name,
       description: data.description,
@@ -85,21 +105,29 @@ export default function MapScreen() {
       longitude: newSpotCoords.longitude,
       user_email: userEmail,
     };
+
     if (isPublic) {
       if (!userEmail) {
         Alert.alert('Non connecté', 'Veuillez vous connecter pour ajouter un point public.');
         return;
       }
+
       const result = await addPublicSpot(spot);
-      if (!result) {
+      console.log('\uD83D\uDCC5 Retour Supabase :', result);
+
+      if (!result || result.success === false) {
         Alert.alert('Erreur', 'Ajout du point public échoué.');
         return;
       }
-      fetchPublicSpots();
+
+      await fetchPublicSpots();
+      Alert.alert('Succès', 'Le spot public a été ajouté.');
     } else {
       await savePrivateSpot(spot);
-      fetchPrivateSpots();
+      await fetchPrivateSpots();
+      Alert.alert('Succès', 'Le spot privé a été ajouté.');
     }
+
     setModalVisible(false);
     setNewSpotCoords(null);
   };
@@ -181,29 +209,37 @@ export default function MapScreen() {
       </MapView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.addButton, addingMode && styles.addButtonTransparent]}
-          onPress={() => {
-            if (addingMode) {
-              setAddingMode(false);
-              setNewSpotCoords(null);
-            } else {
-              setAddingMode(true);
-            }
-          }}
-        >
-          <Text
-            style={[
-              styles.addButtonText,
-              addingMode && styles.addButtonTextTransparent,
-              addingMode && styles.addButtonTextRotated,
-            ]}
+        <View style={styles.floatingButtons}>
+          <TouchableOpacity
+            style={styles.gpsButton}
+            onPress={focusOnUserLocation}
           >
-            +
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <MaterialIcons name="my-location" size={24} color="#333" />
+          </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[styles.addButton, addingMode && styles.addButtonTransparent]}
+            onPress={() => {
+              if (addingMode) {
+                setAddingMode(false);
+                setNewSpotCoords(null);
+              } else {
+                setAddingMode(true);
+              }
+            }}
+          >
+            <Text
+              style={[
+                styles.addButtonText,
+                addingMode && styles.addButtonTextTransparent,
+                addingMode && styles.addButtonTextRotated,
+              ]}
+            >
+              +
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
       {modalVisible && (
         <AddSpotModal
           coords={newSpotCoords}
@@ -279,8 +315,28 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: 60,
+    bottom: 115,
     right: 20,
+  },
+  floatingButtons: {
+    alignItems: 'center',
+  },
+  gpsButton: {
+  backgroundColor: '#fff',
+  width: 42,
+  height: 42,
+  borderRadius: 21,
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginBottom: 10,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.3,
+  shadowRadius: 2,
+  elevation: 4,
+},
+  gpsButtonText: {
+    fontSize: 20,
   },
   addButton: {
     backgroundColor: '#2196f3',
@@ -374,3 +430,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+

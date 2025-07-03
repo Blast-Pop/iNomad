@@ -1,7 +1,7 @@
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import MapScreen from '../screens/MapScreen';
-import LogoutScreen from '../screens/LogoutScreen'; // à créer juste après
+import MapScreen from '../screen/MapScreen';
+import LogoutScreen from '../screen/LogoutScreen'; // à créer juste après
 import { Ionicons } from '@expo/vector-icons';
 
 const Drawer = createDrawerNavigator();
