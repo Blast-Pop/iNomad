@@ -21,29 +21,42 @@ export default function App() {
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   useEffect(() => {
-  (async () => {
-    // Force la récupération de session persistée
-    const { data: sessionData } = await supabase.auth.getSession();
-    console.log("📦 Session récupérée au démarrage :", sessionData.session);
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("📦 Session récupérée au démarrage :", sessionData.session);
 
-    if (!sessionData.session) {
-      console.log("❌ Aucune session trouvée");
-      setUser(null);
-      return;
-    }
+      if (!sessionData.session) {
+        console.log("❌ Aucune session trouvée");
+        setUser(null);
+        return;
+      }
 
-    const { data: userData, error } = await supabase.auth.getUser();
+      const { data: userData, error } = await supabase.auth.getUser();
 
-    if (error || !userData?.user) {
-      console.log("❌ Erreur récupération utilisateur :", error);
-      setUser(null);
-      return;
-    }
+      if (error || !userData?.user) {
+        console.log("❌ Erreur récupération utilisateur :", error);
+        setUser(null);
+        return;
+      }
 
-    console.log("✅ Utilisateur connecté :", userData.user.email);
-    setUser(userData.user);
-  })();
-}, []);
+      console.log("✅ Utilisateur connecté :", userData.user.email);
+      setUser(userData.user);
+    })();
+  }, []);
+
+  // ✅ Ajout de l'écouteur de déconnexion
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        console.log("👋 Utilisateur déconnecté");
+        setUser(null);
+      }
+    });
+
+    return () => {
+      authListener.subscription?.unsubscribe();
+    };
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) return alert('Champs requis');
@@ -112,7 +125,6 @@ export default function App() {
     );
   }
 
-  // ✅ Si l'utilisateur est connecté : on affiche le drawer avec la carte
   return (
     <NavigationContainer>
       <AppNavigation />

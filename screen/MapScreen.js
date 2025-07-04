@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, Alert, TouchableOpacity, Text, Modal, Linking } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AddSpotModal from '../components/AddSpotModal';
 import { getUser, getPublicSpots, addPublicSpot } from '../lib/supabaseClient';
 import { MaterialIcons } from '@expo/vector-icons';
-
 
 export default function MapScreen() {
   const [location, setLocation] = useState(null);
@@ -23,21 +22,20 @@ export default function MapScreen() {
   const mapRef = useRef(null);
 
   const focusOnUserLocation = async () => {
-  const loc = await Location.getCurrentPositionAsync({});
-  setRegion({
-    latitude: loc.coords.latitude,
-    longitude: loc.coords.longitude,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  });
-  mapRef.current?.animateToRegion({
-    latitude: loc.coords.latitude,
-    longitude: loc.coords.longitude,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  });
-};
-
+    const loc = await Location.getCurrentPositionAsync({});
+    setRegion({
+      latitude: loc.coords.latitude,
+      longitude: loc.coords.longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    });
+    mapRef.current?.animateToRegion({
+      latitude: loc.coords.latitude,
+      longitude: loc.coords.longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    });
+  };
 
   useEffect(() => {
     (async () => {
@@ -55,7 +53,6 @@ export default function MapScreen() {
         longitudeDelta: 0.01,
       });
       const user = await getUser();
-      console.log('\uD83D\uDD10 Utilisateur actuel :', user);
       if (user) setUserEmail(user.email);
       fetchPublicSpots();
       fetchPrivateSpots();
@@ -113,8 +110,6 @@ export default function MapScreen() {
       }
 
       const result = await addPublicSpot(spot);
-      console.log('\uD83D\uDCC5 Retour Supabase :', result);
-
       if (!result || result.success === false) {
         Alert.alert('Erreur', 'Ajout du point public échoué.');
         return;
@@ -182,6 +177,7 @@ export default function MapScreen() {
   return (
     <View style={styles.containerWithPadding}>
       <MapView
+        provider={PROVIDER_GOOGLE}
         ref={mapRef}
         style={styles.map}
         region={region}
@@ -210,10 +206,7 @@ export default function MapScreen() {
 
       <View style={styles.footer}>
         <View style={styles.floatingButtons}>
-          <TouchableOpacity
-            style={styles.gpsButton}
-            onPress={focusOnUserLocation}
-          >
+          <TouchableOpacity style={styles.gpsButton} onPress={focusOnUserLocation}>
             <MaterialIcons name="my-location" size={24} color="#333" />
           </TouchableOpacity>
 
@@ -240,6 +233,7 @@ export default function MapScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
       {modalVisible && (
         <AddSpotModal
           coords={newSpotCoords}
@@ -322,19 +316,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   gpsButton: {
-  backgroundColor: '#fff',
-  width: 42,
-  height: 42,
-  borderRadius: 21,
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginBottom: 10,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.3,
-  shadowRadius: 2,
-  elevation: 4,
-},
+    backgroundColor: '#fff',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 4,
+  },
   gpsButtonText: {
     fontSize: 20,
   },
@@ -430,4 +424,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-

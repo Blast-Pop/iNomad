@@ -2,30 +2,49 @@
   "expo": {
     "name": "iNomad",
     "slug": "iNomad",
-    "version": "0.1.3",
+    "version": "0.1.5",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyDZXp9xqMOaQqLSaGV9B_G5bwQk_fy3TEg"
+      },
+      "bundleIdentifier": "com.blastpop.iNomad"
+    },
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.blastpop.iNomad",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyDZXp9xqMOaQqLSaGV9B_G5bwQk_fy3TEg"
         }
-      },
-      "package": "com.nomadfisher.app"
-    },
-    "ios": {
-      "bundleIdentifier": "com.nomadfisher.app",
-      "config": {
-        "googleMapsApiKey": "AIzaSyDZXp9xqMOaQqLSaGV9B_G5bwQk_fy3TEg"
       }
     },
-    "plugins": ["expo-location"]
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-location"],
+    "extra": {
+      "eas": {
+        "projectId": "e1afbee3-f38d-4c36-992d-7920574c3587"
+      }
+    },
+    "owner": "blast-pop"
   }
 }

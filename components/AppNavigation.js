@@ -1,15 +1,32 @@
 import React from 'react';
-import { createDrawerNavigator } from '@react-navigation/drawer';
+import { View, Text } from 'react-native';
+import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import MapScreen from '../screen/MapScreen';
-import LogoutScreen from '../screen/LogoutScreen'; // à créer juste après
+import LogoutScreen from '../screen/LogoutScreen';
 import { Ionicons } from '@expo/vector-icons';
 
 const Drawer = createDrawerNavigator();
+
+function CustomDrawerContent(props) {
+  return (
+    <View style={{ flex: 1 }}>
+      <DrawerContentScrollView {...props} contentContainerStyle={{ flexGrow: 1 }}>
+        <DrawerItemList {...props} />
+      </DrawerContentScrollView>
+      <View style={{ padding: 20 }}>
+        <Text style={{ fontSize: 12, color: '#888', textAlign: 'center' }}>
+         © 2025 iNomad. All rights reserved.
+        </Text>
+      </View>
+    </View>
+  );
+}
 
 export default function AppNavigation() {
   return (
     <Drawer.Navigator
       initialRouteName="Carte"
+      drawerContent={props => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: true,
         drawerActiveTintColor: '#2196f3',
