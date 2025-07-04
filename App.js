@@ -1,16 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, Button,
-  ScrollView, TouchableOpacity, Switch, Alert, Modal
+  ScrollView, TouchableOpacity, Switch, Alert, SafeAreaView
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import * as Location from 'expo-location';
-import { supabase, signInWithEmail, signUpWithEmail, getUser, signOut, getPublicSpots } from './lib/supabaseClient';
-import { getPrivateSpots } from './storage/asyncStorage';
-import useLocationTracking from './hooks/useLocationTracking';
-import AddSpotModal from './components/AddSpotModal';
-import SpotDetailsModal from './components/SpotDetailsModal';
-import { SafeAreaView } from 'react-native';
+import { supabase, signInWithEmail, signUpWithEmail, getUser, signOut } from './lib/supabaseClient';
+import AppNavigation from './components/AppNavigation';
+import { NavigationContainer } from '@react-navigation/native';
 
 export default function App() {
   const [screen, setScreen] = useState('home'); // home | login | register
@@ -25,50 +20,43 @@ export default function App() {
   const [dob, setDob] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
 
-  const [hasPermission, setHasPermission] = useState(false);
-  const [publicSpots, setPublicSpots] = useState([]);
-  const [privateSpots, setPrivateSpots] = useState([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [newSpotCoords, setNewSpotCoords] = useState(null);
-  const [selectedSpot, setSelectedSpot] = useState(null);
-  const [spotModalVisible, setSpotModalVisible] = useState(false);
-
-  const mapRef = useRef(null);
-  const { location } = useLocationTracking();
-
   useEffect(() => {
     (async () => {
-      const u = await getUser();
-      if (u) setUser(u);
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("📦 Session récupérée au démarrage :", sessionData.session);
+
+      if (!sessionData.session) {
+        console.log("❌ Aucune session trouvée");
+        setUser(null);
+        return;
+      }
+
+      const { data: userData, error } = await supabase.auth.getUser();
+
+      if (error || !userData?.user) {
+        console.log("❌ Erreur récupération utilisateur :", error);
+        setUser(null);
+        return;
+      }
+
+      console.log("✅ Utilisateur connecté :", userData.user.email);
+      setUser(userData.user);
     })();
   }, []);
 
+  // ✅ Ajout de l'écouteur de déconnexion
   useEffect(() => {
-    if (user) loadSpots();
-  }, [user]);
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        console.log("👋 Utilisateur déconnecté");
+        setUser(null);
+      }
+    });
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert("Permission requise", "Active ta localisation pour voir la carte.");
-          return;
-        }
-        setHasPermission(true);
-
-    })();
+    return () => {
+      authListener.subscription?.unsubscribe();
+    };
   }, []);
-
-  const loadSpots = async () => {
-    try {
-      const publics = await getPublicSpots();
-      const privates = await getPrivateSpots();
-      setPublicSpots(publics);
-      setPrivateSpots(privates);
-    } catch (e) {
-      console.error('Erreur chargement des spots :', e);
-    }
-  };
 
   const handleLogin = async () => {
     if (!email || !password) return alert('Champs requis');
@@ -86,42 +74,6 @@ export default function App() {
     else alert(result?.error?.message || 'Erreur d’inscription');
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    setUser(null);
-    setEmail('');
-    setPassword('');
-  };
-
-  const handleMapPress = (e) => {
-    setNewSpotCoords(e.nativeEvent.coordinate);
-    setModalVisible(true);
-  };
-
-  const centerMap = () => {
-    if (location && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
-    }
-  };
-
-  const getMarkerColor = (spot) => {
-  if (!spot.user_email) return 'red'; // privé
-
-  switch (spot.activity) {
-    case 'Peche': return 'blue';
-    case 'Camping': return 'green';
-    case 'Sentier 4 roues': return '#8B4513';       // brun foncé
-    case 'Sentier pédestre': return '#40E0D0';       // turquoise
-    case 'Relais routier': return '#9370DB';         // mauve pâle
-    default: return 'blue';
-  }
-};
-
   if (!user) {
     return (
       <ScrollView contentContainerStyle={[styles.container, { justifyContent: 'center', flex: 1 }]}>
@@ -129,8 +81,8 @@ export default function App() {
           <>
             <Text style={styles.title}>Bienvenue sur iNomad</Text>
             <View style={{ gap: 12 }}>
-            <Button title="Connexion" onPress={() => setScreen('login')} />
-            <Button title="Inscription" onPress={() => setScreen('register')} />
+              <Button title="Connexion" onPress={() => setScreen('login')} />
+              <Button title="Inscription" onPress={() => setScreen('register')} />
             </View>
           </>
         )}
@@ -174,71 +126,17 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
-      <Button title="Déconnexion" onPress={handleLogout} />
-
-      {hasPermission && location && (
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          showsUserLocation
-          showsMyLocationButton={false}
-          onPress={handleMapPress}
-          initialRegion={{
-            latitude: location.latitude,
-            longitude: location.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-        >
-          {[...publicSpots, ...privateSpots].map((spot, index) => (
-            <Marker
-              key={index}
-              coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
-              title={spot.name}
-              description={spot.description}
-              pinColor={getMarkerColor(spot)}
-              onPress={() => {
-                setSelectedSpot(spot);
-                setSpotModalVisible(true);
-              }}
-              calloutAnchor={{ x: 0, y: 0 }}
-              tracksViewChanges={false}
-            />
-          ))}
-        </MapView>
-      )}
-
-      {modalVisible && (
-        <Modal visible={modalVisible} transparent animationType="slide">
-          <AddSpotModal
-            coords={newSpotCoords}
-            onClose={() => setModalVisible(false)}
-            onRefresh={loadSpots}
-          />
-        </Modal>
-      )}
-
-      {spotModalVisible && selectedSpot && (
-        <Modal visible={spotModalVisible} transparent animationType="fade">
-          <SpotDetailsModal
-            spot={selectedSpot}
-            onClose={() => setSpotModalVisible(false)}
-            onRefresh={loadSpots}
-          />
-        </Modal>
-      )}
-    </SafeAreaView>
+    <NavigationContainer>
+      <AppNavigation />
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 10 },
-  safeContainer: { flex: 1, backgroundColor: '#fff' }, // ✅ AJOUTÉ
   title: { fontSize: 22, marginBottom: 20, textAlign: 'center' },
   input: { borderBottomWidth: 1, padding: 6, width: '100%', marginBottom: 12 },
   switchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   switchLabel: { marginLeft: 10 },
   link: { marginTop: 10, color: 'blue', textAlign: 'center' },
-  map: { flex: 1 },
 });
