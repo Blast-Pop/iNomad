@@ -3,6 +3,7 @@ import { View, Text } from 'react-native';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import MapScreen from '../screen/MapScreen';
 import LogoutScreen from '../screen/LogoutScreen';
+import ProfileScreen from '../screen/ProfileScreen'; // Ajout
 import { Ionicons } from '@expo/vector-icons';
 
 const Drawer = createDrawerNavigator();
@@ -40,6 +41,15 @@ export default function AppNavigation() {
         options={{
           drawerIcon: ({ color, size }) => (
             <Ionicons name="map-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="Profil"
+        component={ProfileScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       />
