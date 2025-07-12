@@ -2,7 +2,7 @@
   "expo": {
     "name": "iNomad",
     "slug": "iNomad",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -32,7 +32,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_ANDROID_GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyDZXp9xqMOaQqLSaGV9B_G5bwQk_fy3TEg"
         }
       }
     },

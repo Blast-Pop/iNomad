@@ -4,7 +4,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AddSpotModal from '../components/AddSpotModal';
-import { getUser, getPublicSpots, addPublicSpot } from '../lib/supabaseClient';
+import { getUser, getPublicSpots, addPublicSpot, supabase } from '../lib/supabaseClient';
 import { MaterialIcons } from '@expo/vector-icons';
 
 export default function MapScreen() {
@@ -72,6 +72,29 @@ export default function MapScreen() {
       console.error(e);
     }
   };
+
+
+  // ----------- AJOUT DU REALTIME SUPABASE -----------
+  useEffect(() => {
+  const channel = supabase
+    .channel('public:public_spots')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'public_spots' },
+      payload => {
+        console.log('Realtime event:', payload); // AJOUTE CETTE LIGNE
+        fetchPublicSpots();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
+
+  // ---------------------------------------------------
+
 
   const savePrivateSpot = async (spot) => {
     try {
@@ -204,12 +227,15 @@ export default function MapScreen() {
         ))}
       </MapView>
 
+      <TouchableOpacity style={styles.refreshButton} onPress={fetchPublicSpots}>
+        <Text style={styles.refreshText}>🔄 Refresh</Text>
+      </TouchableOpacity>
+
       <View style={styles.footer}>
         <View style={styles.floatingButtons}>
           <TouchableOpacity style={styles.gpsButton} onPress={focusOnUserLocation}>
             <MaterialIcons name="my-location" size={24} color="#333" />
           </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.addButton, addingMode && styles.addButtonTransparent]}
             onPress={() => {
@@ -306,6 +332,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  refreshButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: '#ffffffcc',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 5,
+  },
+  refreshText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   footer: {
     position: 'absolute',
