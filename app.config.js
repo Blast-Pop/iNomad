@@ -22,6 +22,12 @@ module.exports = () => ({
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || '',
       },
+      infoPlist: {
+        NSBluetoothAlwaysUsageDescription:
+          'iNomad utilise Bluetooth pour partager des spots avec des téléphones à proximité.',
+        NSLocalNetworkUsageDescription:
+          'iNomad utilise le réseau local pour découvrir les téléphones à proximité.',
+      },
     },
     android: {
       package: 'com.blastpop.iNomad',
@@ -33,6 +39,10 @@ module.exports = () => ({
       permissions: [
         'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
+        'android.permission.BLUETOOTH_ADVERTISE',
+        'android.permission.BLUETOOTH_CONNECT',
+        'android.permission.BLUETOOTH_SCAN',
+        'android.permission.NEARBY_WIFI_DEVICES',
       ],
       config: {
         googleMaps: {
@@ -43,7 +53,20 @@ module.exports = () => ({
     web: {
       favicon: './assets/favicon.png',
     },
-    plugins: ['expo-location', 'expo-secure-store'],
+    plugins: [
+      'expo-location',
+      'expo-secure-store',
+      [
+        'expo-nearby-connections',
+        {
+          bonjourServicesName: 'inomad',
+          localNetworkUsagePermissionText:
+            'iNomad utilise le réseau local pour découvrir les téléphones à proximité.',
+          bluetoothUsagePermissionText:
+            'iNomad utilise Bluetooth pour partager des spots avec des téléphones à proximité.',
+        },
+      ],
+    ],
     extra: {
       eas: {
         projectId: 'e1afbee3-f38d-4c36-992d-7920574c3587',

@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import AddSpotModal from '../components/AddSpotModal';
 import { getSpots, saveSpot, deleteSpotById } from '../storage/asyncStorage';
+import { getReceivedSpots, deleteReceivedSpot } from '../storage/receivedSpots';
 
 const ACTIVITY_COLORS = {
   Peche: 'blue',
@@ -30,6 +32,7 @@ function colorForActivity(activity) {
 export default function MapScreen() {
   const [region, setRegion] = useState(null);
   const [spots, setSpots] = useState([]);
+  const [received, setReceived] = useState([]);
   const [addingMode, setAddingMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newSpotCoords, setNewSpotCoords] = useState(null);
@@ -38,11 +41,16 @@ export default function MapScreen() {
 
   const mapRef = useRef(null);
 
+  const refresh = async () => {
+    setSpots(await getSpots());
+    setReceived(await getReceivedSpots());
+  };
+
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Localisation requise', 'Active l\'accès à la position.');
+        Alert.alert('Localisation requise', "Active l'accès à la position.");
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
@@ -52,9 +60,16 @@ export default function MapScreen() {
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       });
-      setSpots(await getSpots());
+      await refresh();
     })();
   }, []);
+
+  // Reload when the screen regains focus (e.g. after importing peer spots).
+  useFocusEffect(
+    React.useCallback(() => {
+      refresh();
+    }, [])
+  );
 
   const focusOnUserLocation = async () => {
     const loc = await Location.getCurrentPositionAsync({});
@@ -89,8 +104,13 @@ export default function MapScreen() {
 
   const handleDeleteSpot = async () => {
     if (!selectedSpot) return;
-    const updated = await deleteSpotById(selectedSpot.id);
-    setSpots(updated);
+    if (selectedSpot.isReceived) {
+      const updated = await deleteReceivedSpot(selectedSpot.id);
+      setReceived(updated);
+    } else {
+      const updated = await deleteSpotById(selectedSpot.id);
+      setSpots(updated);
+    }
     setSpotModalVisible(false);
     setSelectedSpot(null);
   };
@@ -125,7 +145,7 @@ export default function MapScreen() {
       >
         {spots.map((spot) => (
           <Marker
-            key={spot.id}
+            key={`own-${spot.id}`}
             coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
             pinColor={colorForActivity(spot.activity)}
             onPress={() => {
@@ -133,6 +153,20 @@ export default function MapScreen() {
               setSpotModalVisible(true);
             }}
           />
+        ))}
+        {received.map((spot) => (
+          <Marker
+            key={`recv-${spot.id}`}
+            coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
+            onPress={() => {
+              setSelectedSpot({ ...spot, isReceived: true });
+              setSpotModalVisible(true);
+            }}
+          >
+            <View style={[styles.receivedPin, { backgroundColor: colorForActivity(spot.activity) }]}>
+              <Ionicons name="star" size={14} color="#fff" />
+            </View>
+          </Marker>
         ))}
       </MapView>
 
@@ -190,6 +224,11 @@ export default function MapScreen() {
               </TouchableOpacity>
 
               <Text style={styles.spotTitle}>{selectedSpot.name}</Text>
+              {selectedSpot.isReceived && selectedSpot.receivedFrom && (
+                <Text style={styles.fromBadge}>
+                  ⭐ reçu de {selectedSpot.receivedFrom.pseudo || selectedSpot.receivedFrom.peerId}
+                </Text>
+              )}
               <Text style={styles.spotText}>{selectedSpot.description}</Text>
               <Text style={styles.spotText}>Activité: {selectedSpot.activity}</Text>
 
@@ -252,6 +291,20 @@ const styles = StyleSheet.create({
   addButtonText: { color: 'white', fontSize: 28, fontWeight: 'bold' },
   addButtonTextTransparent: { color: '#2196f3' },
   addButtonTextRotated: { transform: [{ rotate: '45deg' }] },
+  receivedPin: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
+  },
   spotOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -268,7 +321,8 @@ const styles = StyleSheet.create({
   },
   closeXButton: { position: 'absolute', top: 10, right: 12, zIndex: 10 },
   closeX: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-  spotTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  spotTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
+  fromBadge: { color: '#888', fontSize: 12, marginBottom: 8, fontStyle: 'italic' },
   spotText: { fontSize: 14, marginBottom: 6 },
   mapActions: {
     flexDirection: 'row',

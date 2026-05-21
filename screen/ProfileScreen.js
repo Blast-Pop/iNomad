@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { getSpots } from '../storage/asyncStorage';
+import { getReceivedSpots } from '../storage/receivedSpots';
 import { useIdentity } from '../lib/identityContext';
 import { resetIdentity, getOrCreateIdentity } from '../lib/identity';
 
@@ -21,9 +22,11 @@ function initialsFor(pseudo) {
 export default function ProfileScreen() {
   const { identity, setIdentity } = useIdentity();
   const [spotCount, setSpotCount] = useState(0);
+  const [receivedCount, setReceivedCount] = useState(0);
 
   useEffect(() => {
     getSpots().then((s) => setSpotCount(s.length));
+    getReceivedSpots().then((s) => setReceivedCount(s.length));
   }, []);
 
   const handleReset = () => {
@@ -62,12 +65,12 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.statRow}>
           <Text style={styles.statLabel}>Spots reçus de pairs</Text>
-          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statValue}>{receivedCount}</Text>
         </View>
       </View>
 
       <Text style={styles.note}>
-        Le partage P2P par proximité Bluetooth arrive en v0.3.
+        Partage tes spots par proximité dans l'onglet Échanger.
       </Text>
 
       <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
