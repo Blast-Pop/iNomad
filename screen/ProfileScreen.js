@@ -10,7 +10,7 @@ import {
 import { getSpots } from '../storage/asyncStorage';
 import { getReceivedSpots } from '../storage/receivedSpots';
 import { useIdentity } from '../lib/identityContext';
-import { resetIdentity, getOrCreateIdentity } from '../lib/identity';
+import { clearPseudo } from '../lib/identity';
 
 function initialsFor(pseudo) {
   if (!pseudo) return '?';
@@ -29,19 +29,17 @@ export default function ProfileScreen() {
     getReceivedSpots().then((s) => setReceivedCount(s.length));
   }, []);
 
-  const handleReset = () => {
+  const handleChangePseudo = () => {
     Alert.alert(
-      'Reset identity?',
-      'Ton pseudo, ton keypair et tes spots vont rester, mais tu vas générer une nouvelle identité au prochain démarrage. Continue?',
+      'Changer de pseudo?',
+      "Ton peer ID est lié à ce téléphone et restera le même. Tu vas seulement choisir un nouveau pseudo.",
       [
         { text: 'Annuler', style: 'cancel' },
         {
-          text: 'Reset',
-          style: 'destructive',
+          text: 'Continuer',
           onPress: async () => {
-            await resetIdentity();
-            const fresh = await getOrCreateIdentity();
-            setIdentity(fresh);
+            await clearPseudo();
+            setIdentity({ ...identity, pseudo: null });
           },
         },
       ]
@@ -57,6 +55,7 @@ export default function ProfileScreen() {
       </View>
       <Text style={styles.pseudo}>{identity.pseudo}</Text>
       <Text style={styles.peerId}>peer ID: {identity.peerId}</Text>
+      <Text style={styles.peerNote}>Lié à ce téléphone — permanent</Text>
 
       <View style={styles.statBlock}>
         <View style={styles.statRow}>
@@ -73,8 +72,8 @@ export default function ProfileScreen() {
         Partage tes spots par proximité dans l'onglet Échanger.
       </Text>
 
-      <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
-        <Text style={styles.resetText}>Reset identity</Text>
+      <TouchableOpacity style={styles.resetBtn} onPress={handleChangePseudo}>
+        <Text style={styles.resetText}>Changer de pseudo</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -98,7 +97,8 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
   pseudo: { fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
-  peerId: { color: '#888', fontFamily: 'monospace', marginBottom: 32 },
+  peerId: { color: '#666', fontFamily: 'monospace', marginBottom: 2 },
+  peerNote: { color: '#aaa', fontSize: 11, marginBottom: 28, fontStyle: 'italic' },
   statBlock: { width: '100%', backgroundColor: '#fff', borderRadius: 12, padding: 8 },
   statRow: {
     flexDirection: 'row',
@@ -116,8 +116,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: '#e53935',
+    borderColor: '#888',
     borderRadius: 8,
   },
-  resetText: { color: '#e53935', fontWeight: '600' },
+  resetText: { color: '#555', fontWeight: '600' },
 });

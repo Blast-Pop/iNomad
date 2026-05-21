@@ -49,6 +49,9 @@ export default function OnboardingScreen({ identity, onDone }) {
         <Text style={styles.peerId}>
           Ton peer ID: <Text style={styles.peerIdMono}>{identity.peerId}</Text>
         </Text>
+        <Text style={styles.peerNote}>
+          Lié à ton téléphone — il restera le même même si tu réinstalles l'app.
+        </Text>
         <TouchableOpacity
           style={[styles.button, (!pseudo.trim() || submitting) && styles.buttonDisabled]}
           onPress={handleStart}
@@ -93,7 +96,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 12,
   },
-  peerId: { color: '#666', fontSize: 12, marginBottom: 20 },
+  peerId: { color: '#666', fontSize: 12, marginBottom: 4 },
+  peerNote: { color: '#999', fontSize: 11, marginBottom: 16, fontStyle: 'italic' },
   peerIdMono: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     color: '#333',
