@@ -117,3 +117,6 @@ No servers, no accounts, no data ever leaves the local Bluetooth / WiFi range.
 
 Issues and PRs welcome. The codebase is small and hackable. Releases live on
 the [Releases page](https://github.com/Blast-Pop/iNomad/releases).
+
+Reach out: GitHub [@Blast-Pop](https://github.com/Blast-Pop) · Discord
+**@therealblastpop**
