@@ -1,10 +1,14 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
-import MapScreen from '../screen/MapScreen';
-import LogoutScreen from '../screen/LogoutScreen';
-import ProfileScreen from '../screen/ProfileScreen'; // Ajout
+import {
+  createDrawerNavigator,
+  DrawerContentScrollView,
+  DrawerItemList,
+} from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
+import MapScreen from '../screen/MapScreen';
+import ProfileScreen from '../screen/ProfileScreen';
+import ExchangeScreen from '../screen/ExchangeScreen';
 
 const Drawer = createDrawerNavigator();
 
@@ -16,7 +20,7 @@ function CustomDrawerContent(props) {
       </DrawerContentScrollView>
       <View style={{ padding: 20 }}>
         <Text style={{ fontSize: 12, color: '#888', textAlign: 'center' }}>
-         © 2025 iNomad. All rights reserved.
+          iNomad — open-source, offline-first
         </Text>
       </View>
     </View>
@@ -27,7 +31,7 @@ export default function AppNavigation() {
   return (
     <Drawer.Navigator
       initialRouteName="Carte"
-      drawerContent={props => <CustomDrawerContent {...props} />}
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: true,
         drawerActiveTintColor: '#2196f3',
@@ -45,20 +49,20 @@ export default function AppNavigation() {
         }}
       />
       <Drawer.Screen
+        name="Échanger"
+        component={ExchangeScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="bluetooth-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
         name="Profil"
         component={ProfileScreen}
         options={{
           drawerIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="Déconnexion"
-        component={LogoutScreen}
-        options={{
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="exit-outline" size={size} color={color} />
           ),
         }}
       />

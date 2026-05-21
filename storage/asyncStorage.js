@@ -1,16 +1,60 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEY = 'private_spots';
+const STORAGE_KEY = 'spots';
 
-// Récupère tous les spots privés
-export async function getPrivateSpots() {
-  const json = await AsyncStorage.getItem(STORAGE_KEY);
-  return json ? JSON.parse(json) : [];
+// Time-sortable pseudo-random id, sufficient for local-only collision avoidance.
+// Replaced by signed UUIDs once Phase 2 identity ships.
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 }
 
-// Enregistre un nouveau spot privé dans le téléphone
-export async function savePrivateSpot(spot) {
-  const current = await getPrivateSpots();
-  current.push(spot);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+function ensureSpotShape(spot) {
+  return {
+    id: spot.id || generateId(),
+    name: spot.name,
+    description: spot.description || '',
+    activity: spot.activity,
+    latitude: spot.latitude,
+    longitude: spot.longitude,
+    createdAt: spot.createdAt || new Date().toISOString(),
+    author: spot.author || null,
+  };
+}
+
+export async function getSpots() {
+  const json = await AsyncStorage.getItem(STORAGE_KEY);
+  if (!json) return [];
+  const raw = JSON.parse(json);
+  // Migrate any pre-0.2 records lacking id/createdAt on first read.
+  let dirty = false;
+  const migrated = raw.map((s) => {
+    if (!s.id || !s.createdAt) {
+      dirty = true;
+      return ensureSpotShape(s);
+    }
+    return s;
+  });
+  if (dirty) await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+  return migrated;
+}
+
+export async function saveSpot(spot) {
+  const all = await getSpots();
+  const next = [...all, ensureSpotShape(spot)];
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  return next;
+}
+
+export async function deleteSpotById(id) {
+  const all = await getSpots();
+  const next = all.filter((s) => s.id !== id);
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  return next;
+}
+
+export async function updateSpotById(id, patch) {
+  const all = await getSpots();
+  const next = all.map((s) => (s.id === id ? { ...s, ...patch } : s));
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  return next;
 }

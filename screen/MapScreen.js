@@ -1,18 +1,35 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, Alert, TouchableOpacity, Text, Modal, Linking } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  Text,
+  Modal,
+  Linking,
+} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import AddSpotModal from '../components/AddSpotModal';
-import { getUser, getPublicSpots, addPublicSpot, supabase } from '../lib/supabaseClient';
 import { MaterialIcons } from '@expo/vector-icons';
+import AddSpotModal from '../components/AddSpotModal';
+import { getSpots, saveSpot, deleteSpotById } from '../storage/asyncStorage';
+
+const ACTIVITY_COLORS = {
+  Peche: 'blue',
+  Camping: 'green',
+  'Sentier 4 roues': '#8B4513',
+  'Sentier pédestre': '#40E0D0',
+  'Relais routier': '#9370DB',
+  'Descente de bateau': '#4682B4',
+};
+
+function colorForActivity(activity) {
+  return ACTIVITY_COLORS[activity] || 'red';
+}
 
 export default function MapScreen() {
-  const [location, setLocation] = useState(null);
   const [region, setRegion] = useState(null);
-  const [publicSpots, setPublicSpots] = useState([]);
-  const [privateSpots, setPrivateSpots] = useState([]);
-  const [userEmail, setUserEmail] = useState(null);
+  const [spots, setSpots] = useState([]);
   const [addingMode, setAddingMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newSpotCoords, setNewSpotCoords] = useState(null);
@@ -21,89 +38,34 @@ export default function MapScreen() {
 
   const mapRef = useRef(null);
 
-  const focusOnUserLocation = async () => {
-    const loc = await Location.getCurrentPositionAsync({});
-    setRegion({
-      latitude: loc.coords.latitude,
-      longitude: loc.coords.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    });
-    mapRef.current?.animateToRegion({
-      latitude: loc.coords.latitude,
-      longitude: loc.coords.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    });
-  };
-
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Location required', 'Please enable location access.');
+        Alert.alert('Localisation requise', 'Active l\'accès à la position.');
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
-      setLocation(loc.coords);
       setRegion({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       });
-      const user = await getUser();
-      if (user) setUserEmail(user.email);
-      fetchPublicSpots();
-      fetchPrivateSpots();
+      setSpots(await getSpots());
     })();
   }, []);
 
-  const fetchPublicSpots = async () => {
-    const data = await getPublicSpots();
-    setPublicSpots(data || []);
-  };
-
-  const fetchPrivateSpots = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('private_spots');
-      setPrivateSpots(JSON.parse(stored) || []);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-
-  // ----------- AJOUT DU REALTIME SUPABASE -----------
-  useEffect(() => {
-  const channel = supabase
-    .channel('public:public_spots')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'public_spots' },
-      payload => {
-        console.log('Realtime event:', payload); // AJOUTE CETTE LIGNE
-        fetchPublicSpots();
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, []);
-
-  // ---------------------------------------------------
-
-
-  const savePrivateSpot = async (spot) => {
-    try {
-      const updated = [...privateSpots, spot];
-      setPrivateSpots(updated);
-      await AsyncStorage.setItem('private_spots', JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
+  const focusOnUserLocation = async () => {
+    const loc = await Location.getCurrentPositionAsync({});
+    const next = {
+      latitude: loc.coords.latitude,
+      longitude: loc.coords.longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    };
+    setRegion(next);
+    mapRef.current?.animateToRegion(next);
   };
 
   const handleMapPress = (e) => {
@@ -113,86 +75,38 @@ export default function MapScreen() {
     setAddingMode(false);
   };
 
-  const handleAddSpot = async (data, isPublic) => {
+  const handleAddSpot = async (data) => {
     if (!newSpotCoords) return;
-
-    const spot = {
-      name: data.name,
-      description: data.description,
-      activity: data.activity,
-      subActivities: data.subActivities || [],
+    const updated = await saveSpot({
+      ...data,
       latitude: newSpotCoords.latitude,
       longitude: newSpotCoords.longitude,
-      user_email: userEmail,
-    };
-
-    if (isPublic) {
-      if (!userEmail) {
-        Alert.alert('Non connecté', 'Veuillez vous connecter pour ajouter un point public.');
-        return;
-      }
-
-      const result = await addPublicSpot(spot);
-      if (!result || result.success === false) {
-        Alert.alert('Erreur', 'Ajout du point public échoué.');
-        return;
-      }
-
-      await fetchPublicSpots();
-      Alert.alert('Succès', 'Le spot public a été ajouté.');
-    } else {
-      await savePrivateSpot(spot);
-      await fetchPrivateSpots();
-      Alert.alert('Succès', 'Le spot privé a été ajouté.');
-    }
-
+    });
+    setSpots(updated);
     setModalVisible(false);
     setNewSpotCoords(null);
   };
 
-  const handleSelectSpot = (spot) => {
-    setSelectedSpot(spot);
-    setSpotModalVisible(true);
-  };
-
-  const handleDeletePrivateSpot = async () => {
-    const updated = privateSpots.filter(
-      (s) =>
-        !(s.latitude === selectedSpot.latitude &&
-          s.longitude === selectedSpot.longitude)
-    );
-    setPrivateSpots(updated);
-    await AsyncStorage.setItem('private_spots', JSON.stringify(updated));
+  const handleDeleteSpot = async () => {
+    if (!selectedSpot) return;
+    const updated = await deleteSpotById(selectedSpot.id);
+    setSpots(updated);
     setSpotModalVisible(false);
     setSelectedSpot(null);
   };
 
-  const getPublicMarkerColor = (spot) => {
-    switch (spot.activity) {
-      case 'Peche': return 'blue';
-      case 'Camping': return 'green';
-      case 'Sentier 4 roues': return '#8B4513';
-      case 'Sentier pédestre': return '#40E0D0';
-      case 'Relais routier': return '#9370DB';
-      case 'Descente de bateau': return '#4682B4';
-      default: return 'blue';
-    }
-  };
-
   const openInGoogleMaps = (lat, lng) => {
-    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-    Linking.openURL(url);
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
   };
 
   const navigateToLocation = (lat, lng) => {
-    const url = `google.navigation:q=${lat},${lng}`;
-    Linking.openURL(url);
+    Linking.openURL(`google.navigation:q=${lat},${lng}`);
   };
 
   if (!region) {
     return (
       <View style={styles.center}>
-        <Text>Loading map...</Text>
+        <Text>Chargement de la carte…</Text>
       </View>
     );
   }
@@ -205,31 +119,22 @@ export default function MapScreen() {
         style={styles.map}
         region={region}
         onPress={handleMapPress}
-        showsUserLocation={true}
+        showsUserLocation
         showsMyLocationButton={false}
         showsCompass={false}
       >
-        {publicSpots.map((spot, index) => (
+        {spots.map((spot) => (
           <Marker
-            key={`pub-${index}`}
+            key={spot.id}
             coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
-            pinColor={getPublicMarkerColor(spot)}
-            onPress={() => handleSelectSpot({ ...spot, isPublic: true })}
-          />
-        ))}
-        {privateSpots.map((spot, index) => (
-          <Marker
-            key={`priv-${index}`}
-            coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
-            pinColor="red"
-            onPress={() => handleSelectSpot({ ...spot, isPublic: false })}
+            pinColor={colorForActivity(spot.activity)}
+            onPress={() => {
+              setSelectedSpot(spot);
+              setSpotModalVisible(true);
+            }}
           />
         ))}
       </MapView>
-
-      <TouchableOpacity style={styles.refreshButton} onPress={fetchPublicSpots}>
-        <Text style={styles.refreshText}>🔄 Refresh</Text>
-      </TouchableOpacity>
 
       <View style={styles.footer}>
         <View style={styles.floatingButtons}>
@@ -262,7 +167,6 @@ export default function MapScreen() {
 
       {modalVisible && (
         <AddSpotModal
-          coords={newSpotCoords}
           onClose={() => {
             setModalVisible(false);
             setNewSpotCoords(null);
@@ -288,30 +192,25 @@ export default function MapScreen() {
               <Text style={styles.spotTitle}>{selectedSpot.name}</Text>
               <Text style={styles.spotText}>{selectedSpot.description}</Text>
               <Text style={styles.spotText}>Activité: {selectedSpot.activity}</Text>
-              <Text style={styles.spotText}>Statut: {selectedSpot.isPublic ? 'Public' : 'Privé'}</Text>
-              {selectedSpot.subActivities?.length > 0 && (
-                <Text style={styles.spotText}>Sous-activités: {selectedSpot.subActivities.join(', ')}</Text>
-              )}
 
               <View style={styles.mapActions}>
-                <TouchableOpacity onPress={() => navigateToLocation(selectedSpot.latitude, selectedSpot.longitude)}>
+                <TouchableOpacity
+                  onPress={() => navigateToLocation(selectedSpot.latitude, selectedSpot.longitude)}
+                >
                   <Text style={styles.mapActionText}>Naviguer</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => openInGoogleMaps(selectedSpot.latitude, selectedSpot.longitude)}>
+                <TouchableOpacity
+                  onPress={() => openInGoogleMaps(selectedSpot.latitude, selectedSpot.longitude)}
+                >
                   <Text style={styles.mapActionText}>Ouvrir dans Maps</Text>
                 </TouchableOpacity>
               </View>
 
-              {!selectedSpot.isPublic && (
-                <View style={styles.actionRow}>
-                  <TouchableOpacity style={[styles.actionBtn, styles.editBtn]}>
-                    <Text style={styles.btnText}>Modifier</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDeletePrivateSpot}>
-                    <Text style={styles.btnText}>Supprimer</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDeleteSpot}>
+                  <Text style={styles.btnText}>Supprimer</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -321,45 +220,11 @@ export default function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  containerWithPadding: {
-    flex: 1,
-    paddingBottom: 50,
-  },
-  map: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  refreshButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    backgroundColor: '#ffffffcc',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 5,
-  },
-  refreshText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 115,
-    right: 20,
-  },
-  floatingButtons: {
-    alignItems: 'center',
-  },
+  containerWithPadding: { flex: 1, paddingBottom: 50 },
+  map: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  footer: { position: 'absolute', bottom: 115, right: 20 },
+  floatingButtons: { alignItems: 'center' },
   gpsButton: {
     backgroundColor: '#fff',
     width: 42,
@@ -374,9 +239,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 4,
   },
-  gpsButtonText: {
-    fontSize: 20,
-  },
   addButton: {
     backgroundColor: '#2196f3',
     width: 50,
@@ -386,20 +248,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 4,
   },
-  addButtonTransparent: {
-    backgroundColor: 'rgba(33, 150, 243, 0.2)',
-  },
-  addButtonText: {
-    color: 'white',
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  addButtonTextTransparent: {
-    color: '#2196f3',
-  },
-  addButtonTextRotated: {
-    transform: [{ rotate: '45deg' }],
-  },
+  addButtonTransparent: { backgroundColor: 'rgba(33, 150, 243, 0.2)' },
+  addButtonText: { color: 'white', fontSize: 28, fontWeight: 'bold' },
+  addButtonTextTransparent: { color: '#2196f3' },
+  addButtonTextRotated: { transform: [{ rotate: '45deg' }] },
   spotOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -414,58 +266,24 @@ const styles = StyleSheet.create({
     elevation: 8,
     alignItems: 'flex-start',
   },
-  closeXButton: {
-    position: 'absolute',
-    top: 10,
-    right: 12,
-    zIndex: 10,
-  },
-  closeX: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  spotTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  spotText: {
-    fontSize: 14,
-    marginBottom: 6,
-  },
+  closeXButton: { position: 'absolute', top: 10, right: 12, zIndex: 10 },
+  closeX: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  spotTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  spotText: { fontSize: 14, marginBottom: 6 },
   mapActions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
     marginTop: 16,
   },
-  mapActionText: {
-    color: '#2196f3',
-    fontWeight: 'bold',
-  },
+  mapActionText: { color: '#2196f3', fontWeight: 'bold' },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 20,
     width: '100%',
   },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  editBtn: {
-    backgroundColor: '#2196f3',
-    marginRight: 6,
-  },
-  deleteBtn: {
-    backgroundColor: '#e53935',
-    marginLeft: 6,
-  },
-  btnText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
+  actionBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+  deleteBtn: { backgroundColor: '#e53935' },
+  btnText: { color: 'white', fontWeight: 'bold' },
 });

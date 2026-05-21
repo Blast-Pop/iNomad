@@ -9,22 +9,18 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 
-export default function AddSpotModal({ coords, onClose, onSubmit }) {
+export default function AddSpotModal({ onClose, onSubmit }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [activity, setActivity] = useState('Peche');
-  const [isPublic, setIsPublic] = useState(false);
 
   const handleSubmit = () => {
     if (!name.trim()) return;
-    onSubmit(
-      {
-        name: name.trim(),
-        description: description.trim() || 'Aucune description',
-        activity,
-      },
-      isPublic
-    );
+    onSubmit({
+      name: name.trim(),
+      description: description.trim() || 'Aucune description',
+      activity,
+    });
   };
 
   return (
@@ -53,10 +49,7 @@ export default function AddSpotModal({ coords, onClose, onSubmit }) {
 
           <Text style={styles.label}>Activité :</Text>
           <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={activity}
-              onValueChange={(itemValue) => setActivity(itemValue)}
-            >
+            <Picker selectedValue={activity} onValueChange={setActivity}>
               <Picker.Item label="🎣 Pêche" value="Peche" />
               <Picker.Item label="🏕 Camping" value="Camping" />
               <Picker.Item label="🛻 Sentier 4 roues" value="Sentier 4 roues" />
@@ -66,27 +59,11 @@ export default function AddSpotModal({ coords, onClose, onSubmit }) {
             </Picker>
           </View>
 
-          <Text style={styles.label}>Statut :</Text>
-          <View style={styles.toggleRow}>
-            <TouchableOpacity
-              style={[styles.toggleBtn, isPublic ? styles.toggleActive : styles.toggleInactive]}
-              onPress={() => setIsPublic(true)}
-            >
-              <Text style={styles.toggleText}>Public</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleBtn, !isPublic ? styles.toggleActiveRed : styles.toggleInactive]}
-              onPress={() => setIsPublic(false)}
-            >
-              <Text style={styles.toggleText}>Privé</Text>
-            </TouchableOpacity>
-          </View>
-
           <View style={styles.btnRow}>
             <TouchableOpacity style={styles.saveBtn} onPress={handleSubmit}>
               <Text style={styles.btnText}>Enregistrer</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteBtn} onPress={onClose}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.btnText}>Annuler</Text>
             </TouchableOpacity>
           </View>
@@ -111,64 +88,17 @@ const styles = StyleSheet.create({
     elevation: 8,
     alignItems: 'flex-start',
   },
-  closeXButton: {
-    position: 'absolute',
-    top: 10,
-    right: 12,
-    zIndex: 10,
-  },
-  closeX: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  input: {
-    width: '100%',
-    borderBottomWidth: 1,
-    marginBottom: 12,
-    padding: 6,
-  },
-  label: {
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
+  closeXButton: { position: 'absolute', top: 10, right: 12, zIndex: 10 },
+  closeX: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  input: { width: '100%', borderBottomWidth: 1, marginBottom: 12, padding: 6 },
+  label: { fontWeight: 'bold', marginBottom: 6 },
   pickerWrapper: {
     width: '100%',
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 6,
     marginBottom: 10,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    marginHorizontal: 4,
-    borderRadius: 6,
-  },
-  toggleActive: {
-    backgroundColor: '#4CAF50',
-  },
-  toggleActiveRed: {
-    backgroundColor: '#e53935',
-  },
-  toggleInactive: {
-    backgroundColor: '#ccc',
-  },
-  toggleText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
   btnRow: {
     flexDirection: 'row',
@@ -184,16 +114,13 @@ const styles = StyleSheet.create({
     marginRight: 6,
     alignItems: 'center',
   },
-  deleteBtn: {
-    backgroundColor: '#e53935',
+  cancelBtn: {
+    backgroundColor: '#888',
     padding: 12,
     borderRadius: 6,
     flex: 1,
     marginLeft: 6,
     alignItems: 'center',
   },
-  btnText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
+  btnText: { color: 'white', fontWeight: 'bold' },
 });
