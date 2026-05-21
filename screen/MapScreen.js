@@ -19,7 +19,7 @@ import { getSpots, saveSpot, deleteSpotById } from '../storage/asyncStorage';
 import { getReceivedSpots, deleteReceivedSpot } from '../storage/receivedSpots';
 import { colors, spacing, radius, shadow, colorForActivity, MAP_STYLE_URL } from '../lib/theme';
 
-const DEFAULT_ZOOM = 13;
+const DEFAULT_ZOOM = 14.5;
 
 export default function MapScreen() {
   const [cameraCoord, setCameraCoord] = useState(null);
@@ -74,10 +74,11 @@ export default function MapScreen() {
   const focusOnUserLocation = async () => {
     const loc = await Location.getCurrentPositionAsync({});
     const coord = [loc.coords.longitude, loc.coords.latitude];
-    cameraRef.current?.setCamera({
-      centerCoordinate: coord,
-      zoomLevel: DEFAULT_ZOOM,
-      animationDuration: 500,
+    // MapLibre v11 imperative API: easeTo takes { center, zoom, duration }.
+    cameraRef.current?.easeTo({
+      center: coord,
+      zoom: DEFAULT_ZOOM,
+      duration: 600,
     });
   };
 
@@ -166,7 +167,10 @@ export default function MapScreen() {
       >
         <Camera
           ref={cameraRef}
-          defaultSettings={{ centerCoordinate: cameraCoord, zoomLevel: DEFAULT_ZOOM }}
+          // initialViewState is the v11 prop name; sub-keys are center/zoom
+          // (not centerCoordinate/zoomLevel). Wrong names make the camera
+          // silently fall back to a world view at lat/lng 0,0.
+          initialViewState={{ center: cameraCoord, zoom: DEFAULT_ZOOM }}
         />
         <UserLocation visible />
 
