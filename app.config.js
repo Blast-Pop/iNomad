@@ -57,7 +57,7 @@ module.exports = () => ({
       'expo-location',
       'expo-secure-store',
       [
-        'expo-nearby-connections',
+        './node_modules/expo-nearby-connections/app.plugin.js',
         {
           bonjourServicesName: 'inomad',
           localNetworkUsagePermissionText:
