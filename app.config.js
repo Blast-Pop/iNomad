@@ -5,7 +5,7 @@ module.exports = () => ({
   expo: {
     name: 'iNomad',
     slug: 'iNomad',
-    version: '0.2.2',
+    version: '0.2.3',
     orientation: 'portrait',
     icon: './assets/logo.png',
     userInterfaceStyle: 'light',
