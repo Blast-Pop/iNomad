@@ -40,6 +40,7 @@ module.exports = () => ({
         'android.permission.BLUETOOTH_SCAN',
         'android.permission.NEARBY_WIFI_DEVICES',
         'android.permission.INTERNET',
+        'android.permission.REQUEST_INSTALL_PACKAGES',
       ],
     },
     web: {
