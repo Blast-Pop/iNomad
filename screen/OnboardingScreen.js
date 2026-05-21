@@ -7,9 +7,11 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Image,
+  StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { setPseudo } from '../lib/identity';
+import { colors, spacing, radius, shadow } from '../lib/theme';
 
 export default function OnboardingScreen({ identity, onDone }) {
   const [pseudo, setPseudoLocal] = useState('');
@@ -28,12 +30,17 @@ export default function OnboardingScreen({ identity, onDone }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Image source={require('../assets/logo.png')} style={styles.logo} />
-      <Text style={styles.welcome}>Bienvenue sur</Text>
-      <Text style={styles.brand}>iNomad</Text>
-      <Text style={styles.tagline}>
-        Sauvegarde tes spots outdoor — local, hors-ligne, sans compte.
-      </Text>
+      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
+
+      <View style={styles.brandBlock}>
+        <View style={styles.logoCircle}>
+          <Ionicons name="compass" size={48} color={colors.accent} />
+        </View>
+        <Text style={styles.brand}>iNomad</Text>
+        <Text style={styles.tagline}>
+          Tes spots outdoor, hors-ligne et signés crypto.
+        </Text>
+      </View>
 
       <View style={styles.form}>
         <Text style={styles.label}>Choisis un pseudo</Text>
@@ -42,27 +49,37 @@ export default function OnboardingScreen({ identity, onDone }) {
           value={pseudo}
           onChangeText={setPseudoLocal}
           placeholder="ton pseudo"
+          placeholderTextColor={colors.textDim}
           autoCapitalize="none"
           autoCorrect={false}
           maxLength={24}
+          autoFocus
         />
-        <Text style={styles.peerId}>
-          Ton peer ID: <Text style={styles.peerIdMono}>{identity.peerId}</Text>
-        </Text>
-        <Text style={styles.peerNote}>
-          Lié à ton téléphone — il restera le même même si tu réinstalles l'app.
-        </Text>
+
+        <View style={styles.peerCard}>
+          <View style={styles.peerRow}>
+            <Ionicons name="finger-print" size={16} color={colors.accent} />
+            <Text style={styles.peerLabel}>Ton peer ID</Text>
+          </View>
+          <Text style={styles.peerIdMono}>{identity.peerId}</Text>
+          <Text style={styles.peerNote}>
+            Lié à ce téléphone — restera le même même si tu réinstalles l'app.
+          </Text>
+        </View>
+
         <TouchableOpacity
           style={[styles.button, (!pseudo.trim() || submitting) && styles.buttonDisabled]}
           onPress={handleStart}
           disabled={!pseudo.trim() || submitting}
+          activeOpacity={0.85}
         >
           <Text style={styles.buttonText}>Commencer</Text>
+          <Ionicons name="arrow-forward" size={18} color={colors.text} />
         </TouchableOpacity>
       </View>
 
       <Text style={styles.footer}>
-        Aucune donnée n'est envoyée à un serveur. Ton identité reste sur ce téléphone.
+        Aucune donnée envoyée à un serveur. Tout reste sur ton téléphone.
       </Text>
     </KeyboardAvoidingView>
   );
@@ -71,44 +88,89 @@ export default function OnboardingScreen({ identity, onDone }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
+    backgroundColor: colors.bg,
+    padding: spacing.xl,
+    paddingTop: spacing.xxl + 24,
   },
-  logo: { width: 100, height: 100, resizeMode: 'contain', marginBottom: 20 },
-  welcome: { fontSize: 18, color: '#666' },
-  brand: { fontSize: 36, fontWeight: 'bold', color: '#007AFF', marginBottom: 12 },
+  brandBlock: { alignItems: 'center', marginBottom: spacing.xxl + 8 },
+  logoCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.bgElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
+  },
+  brand: { fontSize: 36, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
   tagline: {
-    color: '#555',
+    color: colors.textMuted,
     textAlign: 'center',
-    marginBottom: 32,
+    marginTop: spacing.sm,
     fontSize: 14,
     lineHeight: 20,
+    paddingHorizontal: spacing.lg,
   },
-  form: { width: '100%', alignItems: 'stretch' },
-  label: { fontWeight: '600', marginBottom: 6, color: '#333' },
+
+  form: { gap: spacing.md },
+  label: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
   input: {
+    backgroundColor: colors.bgElevated,
+    color: colors.text,
+    paddingVertical: spacing.md + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    fontSize: 17,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 12,
+    borderColor: colors.border,
   },
-  peerId: { color: '#666', fontSize: 12, marginBottom: 4 },
-  peerNote: { color: '#999', fontSize: 11, marginBottom: 16, fontStyle: 'italic' },
+
+  peerCard: {
+    backgroundColor: colors.surfaceMuted,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    marginTop: spacing.sm,
+  },
+  peerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 4 },
+  peerLabel: { color: colors.accent, fontSize: 12, fontWeight: '700' },
   peerIdMono: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    color: '#333',
+    color: colors.text,
+    fontSize: 15,
+    marginBottom: 6,
   },
+  peerNote: { color: colors.textDim, fontSize: 11, fontStyle: 'italic' },
+
   button: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 14,
-    borderRadius: 10,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md + 4,
+    borderRadius: radius.md,
+    marginTop: spacing.lg,
   },
-  buttonDisabled: { backgroundColor: '#bbb' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  footer: { color: '#888', fontSize: 11, marginTop: 40, textAlign: 'center' },
+  buttonDisabled: { backgroundColor: colors.surface, opacity: 0.5 },
+  buttonText: { color: colors.text, fontSize: 16, fontWeight: '700' },
+
+  footer: {
+    color: colors.textDim,
+    fontSize: 11,
+    marginTop: 'auto',
+    textAlign: 'center',
+    paddingBottom: spacing.md,
+  },
 });

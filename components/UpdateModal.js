@@ -7,15 +7,14 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { downloadAndInstall } from '../lib/updater';
+import { colors, spacing, radius, shadow } from '../lib/theme';
 
 function formatSize(bytes) {
   if (!bytes) return '';
-  const mb = bytes / (1024 * 1024);
-  return `${mb.toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function UpdateModal({ update, onClose }) {
@@ -43,27 +42,33 @@ export default function UpdateModal({ update, onClose }) {
       <View style={styles.overlay}>
         <View style={styles.card}>
           <View style={styles.headerRow}>
-            <Ionicons name="cloud-download-outline" size={28} color="#2196f3" />
-            <Text style={styles.title}>Nouvelle version disponible</Text>
+            <View style={styles.headerIcon}>
+              <Ionicons name="cloud-download" size={22} color={colors.accent} />
+            </View>
+            <Text style={styles.title}>Nouvelle version</Text>
           </View>
 
-          <Text style={styles.versionLine}>
-            <Text style={styles.versionTag}>v{update.currentVersion}</Text>
-            {'  →  '}
-            <Text style={styles.versionTagNew}>v{update.version}</Text>
-            {update.sizeBytes ? `   (${formatSize(update.sizeBytes)})` : ''}
-          </Text>
+          <View style={styles.versionRow}>
+            <Text style={styles.versionCurrent}>v{update.currentVersion}</Text>
+            <Ionicons name="arrow-forward" size={14} color={colors.textDim} />
+            <Text style={styles.versionNew}>v{update.version}</Text>
+            {update.sizeBytes ? (
+              <Text style={styles.versionSize}>· {formatSize(update.sizeBytes)}</Text>
+            ) : null}
+          </View>
 
           {update.notes ? (
-            <ScrollView style={styles.notes} contentContainerStyle={{ paddingVertical: 4 }}>
+            <ScrollView style={styles.notes}>
               <Text style={styles.notesText}>{update.notes}</Text>
             </ScrollView>
           ) : null}
 
           {downloading && (
-            <View style={styles.progressRow}>
-              <ActivityIndicator size="small" />
-              <Text style={styles.progressText}>
+            <View style={styles.progressBar}>
+              <View
+                style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]}
+              />
+              <Text style={styles.progressLabel}>
                 Téléchargement… {Math.round(progress * 100)}%
               </Text>
             </View>
@@ -81,9 +86,10 @@ export default function UpdateModal({ update, onClose }) {
               style={[styles.installBtn, downloading && styles.installBtnDisabled]}
               onPress={handleInstall}
               disabled={downloading}
+              activeOpacity={0.85}
             >
               <Text style={styles.installBtnText}>
-                {downloading ? 'Téléchargement…' : 'Installer'}
+                {downloading ? 'En cours…' : 'Installer'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -96,50 +102,95 @@ export default function UpdateModal({ update, onClose }) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.lg,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 20,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     width: '100%',
     maxWidth: 420,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  title: { fontSize: 18, fontWeight: 'bold', marginLeft: 8 },
-  versionLine: { color: '#555', marginBottom: 12 },
-  versionTag: { fontFamily: 'monospace', color: '#888' },
-  versionTagNew: { fontFamily: 'monospace', color: '#2196f3', fontWeight: 'bold' },
-  notes: { maxHeight: 200, marginVertical: 8 },
-  notesText: { color: '#333', fontSize: 13, lineHeight: 18 },
-  progressRow: {
+  headerIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: { fontSize: 18, fontWeight: '700', color: colors.text },
+
+  versionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  progressText: { marginLeft: 8, color: '#555' },
+  versionCurrent: { color: colors.textDim, fontFamily: 'monospace', fontSize: 13 },
+  versionNew: { color: colors.accent, fontFamily: 'monospace', fontSize: 13, fontWeight: '700' },
+  versionSize: { color: colors.textDim, fontSize: 12 },
+
+  notes: {
+    maxHeight: 220,
+    marginVertical: spacing.sm,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  notesText: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
+
+  progressBar: {
+    height: 32,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.sm,
+    marginTop: spacing.sm,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  progressFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    backgroundColor: colors.primary,
+    opacity: 0.4,
+  },
+  progressLabel: {
+    color: colors.text,
+    fontWeight: '600',
+    textAlign: 'center',
+    fontSize: 12,
+  },
+
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 16,
-    gap: 12,
+    marginTop: spacing.lg,
+    gap: spacing.sm,
   },
-  skipBtn: { paddingVertical: 10, paddingHorizontal: 14 },
-  skipBtnText: { color: '#888', fontWeight: '600' },
+  skipBtn: { paddingVertical: spacing.sm + 2, paddingHorizontal: spacing.md },
+  skipBtnText: { color: colors.textMuted, fontWeight: '600' },
   installBtn: {
-    backgroundColor: '#2196f3',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
   },
-  installBtnDisabled: { backgroundColor: '#90caf9' },
-  installBtnText: { color: '#fff', fontWeight: '700' },
+  installBtnDisabled: { opacity: 0.5 },
+  installBtnText: { color: colors.text, fontWeight: '700' },
 });

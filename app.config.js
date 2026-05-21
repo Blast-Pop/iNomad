@@ -5,15 +5,15 @@ module.exports = () => ({
   expo: {
     name: 'iNomad',
     slug: 'iNomad',
-    version: '0.2.4',
+    version: '0.3.0',
     orientation: 'portrait',
     icon: './assets/logo.png',
-    userInterfaceStyle: 'light',
+    userInterfaceStyle: 'dark',
     newArchEnabled: true,
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#0B1F26',
     },
     ios: {
       supportsTablet: true,
@@ -30,7 +30,7 @@ module.exports = () => ({
       edgeToEdgeEnabled: true,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#0B1F26',
       },
       permissions: [
         'android.permission.ACCESS_COARSE_LOCATION',

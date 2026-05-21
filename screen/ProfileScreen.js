@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { getSpots } from '../storage/asyncStorage';
 import { getReceivedSpots } from '../storage/receivedSpots';
 import { useIdentity } from '../lib/identityContext';
 import { clearPseudo } from '../lib/identity';
+import { colors, spacing, radius, shadow } from '../lib/theme';
 
 function initialsFor(pseudo) {
   if (!pseudo) return '?';
@@ -50,30 +52,58 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initialsFor(identity.pseudo)}</Text>
+      <View style={styles.avatarRing}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initialsFor(identity.pseudo)}</Text>
+        </View>
       </View>
       <Text style={styles.pseudo}>{identity.pseudo}</Text>
-      <Text style={styles.peerId}>peer ID: {identity.peerId}</Text>
+
+      <View style={styles.peerBadge}>
+        <Ionicons name="finger-print" size={12} color={colors.accent} />
+        <Text style={styles.peerId}>{identity.peerId}</Text>
+      </View>
       <Text style={styles.peerNote}>Lié à ce téléphone — permanent</Text>
 
-      <View style={styles.statBlock}>
-        <View style={styles.statRow}>
-          <Text style={styles.statLabel}>Spots locaux</Text>
+      <View style={styles.statRow}>
+        <View style={styles.statCard}>
+          <Ionicons name="location" size={20} color={colors.primary} />
           <Text style={styles.statValue}>{spotCount}</Text>
+          <Text style={styles.statLabel}>Spots locaux</Text>
         </View>
-        <View style={styles.statRow}>
-          <Text style={styles.statLabel}>Spots reçus de pairs</Text>
+        <View style={styles.statCard}>
+          <Ionicons name="star" size={20} color={colors.accent} />
           <Text style={styles.statValue}>{receivedCount}</Text>
+          <Text style={styles.statLabel}>Reçus de pairs</Text>
         </View>
       </View>
 
-      <Text style={styles.note}>
-        Partage tes spots par proximité dans l'onglet Échanger.
-      </Text>
+      <View style={styles.infoCard}>
+        <View style={styles.infoRow}>
+          <Ionicons name="bluetooth" size={16} color={colors.accent} />
+          <Text style={styles.infoText}>
+            Échanger des spots P2P dans l'onglet Échanger
+          </Text>
+        </View>
+        <View style={styles.infoDivider} />
+        <View style={styles.infoRow}>
+          <Ionicons name="cloud-offline" size={16} color={colors.accent} />
+          <Text style={styles.infoText}>
+            100% local — rien n'est envoyé à un serveur
+          </Text>
+        </View>
+        <View style={styles.infoDivider} />
+        <View style={styles.infoRow}>
+          <Ionicons name="shield-checkmark" size={16} color={colors.accent} />
+          <Text style={styles.infoText}>
+            Tes spots partagés sont signés crypto (ed25519)
+          </Text>
+        </View>
+      </View>
 
-      <TouchableOpacity style={styles.resetBtn} onPress={handleChangePseudo}>
-        <Text style={styles.resetText}>Changer de pseudo</Text>
+      <TouchableOpacity style={styles.actionBtn} onPress={handleChangePseudo}>
+        <Ionicons name="pencil" size={16} color={colors.textMuted} />
+        <Text style={styles.actionBtnText}>Changer de pseudo</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -81,43 +111,92 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
-    backgroundColor: '#f9f9f9',
+    padding: spacing.xl,
+    paddingTop: spacing.xl,
+    backgroundColor: colors.bg,
     flexGrow: 1,
     alignItems: 'center',
   },
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#007AFF',
+  avatarRing: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    padding: 4,
+    borderWidth: 2,
+    borderColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
-  avatarText: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
-  pseudo: { fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
-  peerId: { color: '#666', fontFamily: 'monospace', marginBottom: 2 },
-  peerNote: { color: '#aaa', fontSize: 11, marginBottom: 28, fontStyle: 'italic' },
-  statBlock: { width: '100%', backgroundColor: '#fff', borderRadius: 12, padding: 8 },
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.bgElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadow.card,
+  },
+  avatarText: { color: colors.text, fontSize: 36, fontWeight: '800' },
+  pseudo: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: spacing.xs },
+  peerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  peerId: { color: colors.text, fontFamily: 'monospace', fontSize: 12 },
+  peerNote: { color: colors.textDim, fontSize: 11, marginTop: 4, fontStyle: 'italic' },
+
   statRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e6e6e6',
+    gap: spacing.md,
+    marginTop: spacing.xl,
+    width: '100%',
   },
-  statLabel: { fontSize: 15 },
-  statValue: { fontSize: 15, fontWeight: '600' },
-  note: { color: '#888', fontSize: 13, marginTop: 24, textAlign: 'center' },
-  resetBtn: {
-    marginTop: 40,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    gap: 4,
     borderWidth: 1,
-    borderColor: '#888',
-    borderRadius: 8,
+    borderColor: colors.borderSubtle,
   },
-  resetText: { color: '#555', fontWeight: '600' },
+  statValue: { color: colors.text, fontSize: 24, fontWeight: '800' },
+  statLabel: { color: colors.textMuted, fontSize: 12 },
+
+  infoCard: {
+    width: '100%',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  infoText: { color: colors.textMuted, flex: 1, fontSize: 13 },
+  infoDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
+
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+  },
+  actionBtnText: { color: colors.textMuted, fontWeight: '600' },
 });

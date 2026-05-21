@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,41 +7,21 @@ import {
   Text,
   Modal,
   Linking,
+  Animated,
+  Easing,
 } from 'react-native';
-import {
-  Map,
-  Camera,
-  UserLocation,
-  Marker,
-} from '@maplibre/maplibre-react-native';
+import { Map, Camera, UserLocation, Marker } from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AddSpotModal from '../components/AddSpotModal';
 import { getSpots, saveSpot, deleteSpotById } from '../storage/asyncStorage';
 import { getReceivedSpots, deleteReceivedSpot } from '../storage/receivedSpots';
-
-// Free OSS vector tiles via OpenFreeMap (OpenStreetMap data, no API key, no tracking).
-// Swap to another MapLibre-compatible style URL if you want a different look.
-const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+import { colors, spacing, radius, shadow, colorForActivity, MAP_STYLE_URL } from '../lib/theme';
 
 const DEFAULT_ZOOM = 13;
 
-const ACTIVITY_COLORS = {
-  Peche: '#1976d2',
-  Camping: '#388e3c',
-  'Sentier 4 roues': '#8B4513',
-  'Sentier pédestre': '#00897b',
-  'Relais routier': '#7b1fa2',
-  'Descente de bateau': '#0277bd',
-};
-
-function colorForActivity(activity) {
-  return ACTIVITY_COLORS[activity] || '#e53935';
-}
-
 export default function MapScreen() {
-  const [userCoord, setUserCoord] = useState(null);
   const [cameraCoord, setCameraCoord] = useState(null);
   const [spots, setSpots] = useState([]);
   const [received, setReceived] = useState([]);
@@ -50,8 +30,12 @@ export default function MapScreen() {
   const [newSpotCoords, setNewSpotCoords] = useState(null);
   const [selectedSpot, setSelectedSpot] = useState(null);
   const [spotModalVisible, setSpotModalVisible] = useState(false);
+  const [tapRipple, setTapRipple] = useState(null);
 
   const cameraRef = useRef(null);
+  const rippleScale = useRef(new Animated.Value(0)).current;
+  const rippleOpacity = useRef(new Animated.Value(0)).current;
+  const bannerSlide = useRef(new Animated.Value(-100)).current;
 
   const refresh = async () => {
     setSpots(await getSpots());
@@ -66,23 +50,30 @@ export default function MapScreen() {
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
-      const coord = [loc.coords.longitude, loc.coords.latitude];
-      setUserCoord(coord);
-      setCameraCoord(coord);
+      setCameraCoord([loc.coords.longitude, loc.coords.latitude]);
       await refresh();
     })();
   }, []);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       refresh();
     }, [])
   );
 
+  // Animate the top banner when adding mode toggles.
+  useEffect(() => {
+    Animated.timing(bannerSlide, {
+      toValue: addingMode ? 0 : -100,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [addingMode, bannerSlide]);
+
   const focusOnUserLocation = async () => {
     const loc = await Location.getCurrentPositionAsync({});
     const coord = [loc.coords.longitude, loc.coords.latitude];
-    setUserCoord(coord);
     cameraRef.current?.setCamera({
       centerCoordinate: coord,
       zoomLevel: DEFAULT_ZOOM,
@@ -90,16 +81,37 @@ export default function MapScreen() {
     });
   };
 
+  const playRipple = (coord) => {
+    setTapRipple(coord);
+    rippleScale.setValue(0);
+    rippleOpacity.setValue(0.6);
+    Animated.parallel([
+      Animated.timing(rippleScale, {
+        toValue: 1,
+        duration: 400,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(rippleOpacity, {
+        toValue: 0,
+        duration: 400,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(() => setTapRipple(null));
+  };
+
   const handleMapPress = (event) => {
     if (!addingMode) return;
-    // MapLibre RN delivers a NativeSyntheticEvent<PressEvent> where
-    // nativeEvent.lngLat is the [longitude, latitude] tuple.
     const lngLat = event?.nativeEvent?.lngLat;
     if (!lngLat) return;
     const [longitude, latitude] = lngLat;
+    playRipple([longitude, latitude]);
     setNewSpotCoords({ latitude, longitude });
-    setModalVisible(true);
-    setAddingMode(false);
+    setTimeout(() => {
+      setModalVisible(true);
+      setAddingMode(false);
+    }, 280);
   };
 
   const handleAddSpot = async (data) => {
@@ -127,25 +139,25 @@ export default function MapScreen() {
     setSelectedSpot(null);
   };
 
-  const openInGoogleMaps = (lat, lng) => {
+  const openInOSM = (lat, lng) => {
     Linking.openURL(`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`);
   };
 
   const navigateToLocation = (lat, lng) => {
-    // Use a geo: URI which any installed nav app (OSMAnd, Organic Maps, Google Maps, etc.) can handle
     Linking.openURL(`geo:${lat},${lng}?q=${lat},${lng}`);
   };
 
   if (!cameraCoord) {
     return (
-      <View style={styles.center}>
-        <Text>Chargement de la carte…</Text>
+      <View style={styles.loading}>
+        <Ionicons name="map-outline" size={48} color={colors.textDim} />
+        <Text style={styles.loadingText}>Chargement de la carte…</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.containerWithPadding}>
+    <View style={styles.root}>
       <Map
         style={styles.map}
         mapStyle={MAP_STYLE_URL}
@@ -168,12 +180,11 @@ export default function MapScreen() {
               setSpotModalVisible(true);
             }}
           >
-            <View
-              style={[
-                styles.ownPin,
-                { backgroundColor: colorForActivity(spot.activity) },
-              ]}
-            />
+            <View style={styles.pinShadow}>
+              <View style={[styles.ownPin, { backgroundColor: colorForActivity(spot.activity) }]}>
+                <View style={styles.ownPinInner} />
+              </View>
+            </View>
           </Marker>
         ))}
 
@@ -187,45 +198,65 @@ export default function MapScreen() {
               setSpotModalVisible(true);
             }}
           >
-            <View
-              style={[
-                styles.receivedPin,
-                { backgroundColor: colorForActivity(spot.activity) },
-              ]}
-            >
-              <Ionicons name="star" size={14} color="#fff" />
+            <View style={styles.pinShadow}>
+              <View
+                style={[styles.receivedPin, { backgroundColor: colorForActivity(spot.activity) }]}
+              >
+                <Ionicons name="star" size={12} color={colors.text} />
+              </View>
             </View>
           </Marker>
         ))}
+
+        {tapRipple && (
+          <Marker id="tap-ripple" coordinate={tapRipple}>
+            <Animated.View
+              style={[
+                styles.ripple,
+                { opacity: rippleOpacity, transform: [{ scale: rippleScale }] },
+              ]}
+            />
+          </Marker>
+        )}
       </Map>
 
-      <View style={styles.footer}>
-        <View style={styles.floatingButtons}>
-          <TouchableOpacity style={styles.gpsButton} onPress={focusOnUserLocation}>
-            <MaterialIcons name="my-location" size={24} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.addButton, addingMode && styles.addButtonTransparent]}
-            onPress={() => {
-              if (addingMode) {
-                setAddingMode(false);
-                setNewSpotCoords(null);
-              } else {
-                setAddingMode(true);
-              }
-            }}
-          >
-            <Text
-              style={[
-                styles.addButtonText,
-                addingMode && styles.addButtonTextTransparent,
-                addingMode && styles.addButtonTextRotated,
-              ]}
-            >
-              +
-            </Text>
-          </TouchableOpacity>
-        </View>
+      {/* Top banner shown while in adding mode */}
+      <Animated.View
+        pointerEvents={addingMode ? 'auto' : 'none'}
+        style={[styles.banner, { transform: [{ translateY: bannerSlide }] }]}
+      >
+        <Ionicons name="location-outline" size={20} color={colors.accent} />
+        <Text style={styles.bannerText}>Tape sur la carte pour placer ton spot</Text>
+        <TouchableOpacity
+          style={styles.bannerCancel}
+          onPress={() => {
+            setAddingMode(false);
+            setNewSpotCoords(null);
+          }}
+        >
+          <Text style={styles.bannerCancelText}>Annuler</Text>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Floating action stack */}
+      <View style={styles.fabStack}>
+        <TouchableOpacity style={styles.fabSecondary} onPress={focusOnUserLocation}>
+          <MaterialIcons name="my-location" size={22} color={colors.text} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fabPrimary, addingMode && styles.fabPrimaryActive]}
+          onPress={() => {
+            setAddingMode((m) => !m);
+            setNewSpotCoords(null);
+          }}
+          activeOpacity={0.85}
+        >
+          <Ionicons
+            name={addingMode ? 'close' : 'add'}
+            size={28}
+            color={addingMode ? colors.accent : colors.text}
+          />
+        </TouchableOpacity>
       </View>
 
       {modalVisible && (
@@ -239,46 +270,72 @@ export default function MapScreen() {
       )}
 
       {spotModalVisible && selectedSpot && (
-        <Modal transparent animationType="fade" visible={spotModalVisible}>
-          <View style={styles.spotOverlay}>
-            <View style={styles.spotCard}>
-              <TouchableOpacity
-                style={styles.closeXButton}
-                onPress={() => {
-                  setSpotModalVisible(false);
-                  setSelectedSpot(null);
-                }}
-              >
-                <Text style={styles.closeX}>✕</Text>
-              </TouchableOpacity>
-
-              <Text style={styles.spotTitle}>{selectedSpot.name}</Text>
-              {selectedSpot.isReceived && selectedSpot.receivedFrom && (
-                <Text style={styles.fromBadge}>
-                  ⭐ reçu de {selectedSpot.receivedFrom.pseudo || selectedSpot.receivedFrom.peerId}
+        <Modal transparent animationType="slide" visible={spotModalVisible}>
+          <View style={styles.detailsBackdrop}>
+            <View style={styles.detailsSheet}>
+              <View style={styles.detailsHandle} />
+              <View style={styles.detailsHeader}>
+                <View
+                  style={[
+                    styles.detailsActivityDot,
+                    { backgroundColor: colorForActivity(selectedSpot.activity) },
+                  ]}
+                />
+                <Text style={styles.detailsTitle} numberOfLines={1}>
+                  {selectedSpot.name}
                 </Text>
+                <TouchableOpacity
+                  style={styles.detailsClose}
+                  onPress={() => {
+                    setSpotModalVisible(false);
+                    setSelectedSpot(null);
+                  }}
+                >
+                  <Ionicons name="close" size={22} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              {selectedSpot.isReceived && selectedSpot.receivedFrom && (
+                <View style={styles.detailsBadge}>
+                  <Ionicons name="star" size={12} color={colors.accent} />
+                  <Text style={styles.detailsBadgeText}>
+                    reçu de {selectedSpot.receivedFrom.pseudo || selectedSpot.receivedFrom.peerId}
+                  </Text>
+                </View>
               )}
-              <Text style={styles.spotText}>{selectedSpot.description}</Text>
-              <Text style={styles.spotText}>Activité: {selectedSpot.activity}</Text>
 
-              <View style={styles.mapActions}>
+              {selectedSpot.description ? (
+                <Text style={styles.detailsDesc}>{selectedSpot.description}</Text>
+              ) : null}
+
+              <View style={styles.detailsRow}>
+                <Ionicons name="trail-sign-outline" size={16} color={colors.textMuted} />
+                <Text style={styles.detailsRowText}>{selectedSpot.activity}</Text>
+              </View>
+
+              <View style={styles.detailsActions}>
                 <TouchableOpacity
-                  onPress={() => navigateToLocation(selectedSpot.latitude, selectedSpot.longitude)}
+                  style={styles.detailsActionBtn}
+                  onPress={() =>
+                    navigateToLocation(selectedSpot.latitude, selectedSpot.longitude)
+                  }
                 >
-                  <Text style={styles.mapActionText}>Naviguer</Text>
+                  <Ionicons name="navigate-outline" size={18} color={colors.text} />
+                  <Text style={styles.detailsActionText}>Naviguer</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => openInGoogleMaps(selectedSpot.latitude, selectedSpot.longitude)}
+                  style={styles.detailsActionBtn}
+                  onPress={() => openInOSM(selectedSpot.latitude, selectedSpot.longitude)}
                 >
-                  <Text style={styles.mapActionText}>Voir sur OSM</Text>
+                  <Ionicons name="open-outline" size={18} color={colors.text} />
+                  <Text style={styles.detailsActionText}>Voir sur OSM</Text>
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.actionRow}>
-                <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDeleteSpot}>
-                  <Text style={styles.btnText}>Supprimer</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity style={styles.detailsDelete} onPress={handleDeleteSpot}>
+                <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                <Text style={styles.detailsDeleteText}>Supprimer</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -288,97 +345,185 @@ export default function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  containerWithPadding: { flex: 1, paddingBottom: 50 },
+  root: { flex: 1, backgroundColor: colors.bg },
+  loading: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  loadingText: { color: colors.textMuted, fontSize: 14 },
   map: { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  footer: { position: 'absolute', bottom: 115, right: 20 },
-  floatingButtons: { alignItems: 'center' },
-  gpsButton: {
-    backgroundColor: '#fff',
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+
+  banner: {
+    position: 'absolute',
+    top: spacing.lg,
+    left: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    ...shadow.card,
+  },
+  bannerText: { color: colors.text, fontSize: 14, flex: 1, fontWeight: '500' },
+  bannerCancel: { paddingVertical: 4, paddingHorizontal: spacing.sm },
+  bannerCancelText: { color: colors.accent, fontWeight: '700', fontSize: 13 },
+
+  fabStack: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.xl + 40,
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  fabSecondary: {
+    backgroundColor: colors.bgElevated,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
   },
-  addButton: {
-    backgroundColor: '#2196f3',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  fabPrimary: {
+    backgroundColor: colors.primary,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
+    ...shadow.card,
   },
-  addButtonTransparent: { backgroundColor: 'rgba(33, 150, 243, 0.2)' },
-  addButtonText: { color: 'white', fontSize: 28, fontWeight: 'bold' },
-  addButtonTextTransparent: { color: '#2196f3' },
-  addButtonTextRotated: { transform: [{ rotate: '45deg' }] },
-  ownPin: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  fabPrimaryActive: {
+    backgroundColor: colors.bgElevated,
     borderWidth: 2,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 3,
+    borderColor: colors.accent,
+  },
+
+  // Map pins
+  pinShadow: {
+    ...shadow.pin,
+  },
+  ownPin: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: colors.text,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ownPinInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.bg,
   },
   receivedPin: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 3,
-  },
-  spotOverlay: {
-    flex: 1,
+    borderColor: colors.text,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  spotCard: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    width: '80%',
-    elevation: 8,
-    alignItems: 'flex-start',
+  ripple: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.accent,
   },
-  closeXButton: { position: 'absolute', top: 10, right: 12, zIndex: 10 },
-  closeX: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-  spotTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
-  fromBadge: { color: '#888', fontSize: 12, marginBottom: 8, fontStyle: 'italic' },
-  spotText: { fontSize: 14, marginBottom: 6 },
-  mapActions: {
+
+  // Spot details bottom sheet
+  detailsBackdrop: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  detailsSheet: {
+    backgroundColor: colors.bgElevated,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl + 16,
+  },
+  detailsHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  detailsHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginTop: 16,
+    alignItems: 'center',
+    gap: spacing.md,
   },
-  mapActionText: { color: '#2196f3', fontWeight: 'bold' },
-  actionRow: {
+  detailsActivityDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  detailsTitle: { flex: 1, fontSize: 20, fontWeight: '700', color: colors.text },
+  detailsClose: { padding: 4 },
+  detailsBadge: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    width: '100%',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
   },
-  actionBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
-  deleteBtn: { backgroundColor: '#e53935' },
-  btnText: { color: 'white', fontWeight: 'bold' },
+  detailsBadgeText: { color: colors.accent, fontSize: 11, fontWeight: '600' },
+  detailsDesc: { color: colors.textMuted, fontSize: 14, marginTop: spacing.md, lineHeight: 20 },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  detailsRowText: { color: colors.text, fontSize: 14 },
+  detailsActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  detailsActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+  },
+  detailsActionText: { color: colors.text, fontWeight: '600' },
+  detailsDelete: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  detailsDeleteText: { color: colors.danger, fontWeight: '600' },
 });
