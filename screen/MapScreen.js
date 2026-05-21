@@ -92,7 +92,11 @@ export default function MapScreen() {
 
   const handleMapPress = (event) => {
     if (!addingMode) return;
-    const [longitude, latitude] = event.geometry.coordinates;
+    // MapLibre RN delivers a NativeSyntheticEvent<PressEvent> where
+    // nativeEvent.lngLat is the [longitude, latitude] tuple.
+    const lngLat = event?.nativeEvent?.lngLat;
+    if (!lngLat) return;
+    const [longitude, latitude] = lngLat;
     setNewSpotCoords({ latitude, longitude });
     setModalVisible(true);
     setAddingMode(false);
@@ -146,8 +150,7 @@ export default function MapScreen() {
         style={styles.map}
         mapStyle={MAP_STYLE_URL}
         onPress={handleMapPress}
-        attributionEnabled
-        logoEnabled={false}
+        attribution
       >
         <Camera
           ref={cameraRef}
@@ -160,7 +163,7 @@ export default function MapScreen() {
             key={`own-${spot.id}`}
             id={`own-${spot.id}`}
             coordinate={[spot.longitude, spot.latitude]}
-            onSelected={() => {
+            onPress={() => {
               setSelectedSpot(spot);
               setSpotModalVisible(true);
             }}
@@ -179,7 +182,7 @@ export default function MapScreen() {
             key={`recv-${spot.id}`}
             id={`recv-${spot.id}`}
             coordinate={[spot.longitude, spot.latitude]}
-            onSelected={() => {
+            onPress={() => {
               setSelectedSpot({ ...spot, isReceived: true });
               setSpotModalVisible(true);
             }}
