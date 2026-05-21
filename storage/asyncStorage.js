@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getIdentity } from '../lib/identity';
 
 const STORAGE_KEY = 'spots';
 
@@ -40,7 +41,14 @@ export async function getSpots() {
 
 export async function saveSpot(spot) {
   const all = await getSpots();
-  const next = [...all, ensureSpotShape(spot)];
+  // Tag the spot with our own peerId so we can distinguish ours from those
+  // received from peers (Phase 3). If identity isn't ready yet, leave null.
+  let author = spot.author || null;
+  if (!author) {
+    const id = await getIdentity();
+    if (id) author = id.peerId;
+  }
+  const next = [...all, ensureSpotShape({ ...spot, author })];
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   return next;
 }

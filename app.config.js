@@ -43,7 +43,7 @@ module.exports = () => ({
     web: {
       favicon: './assets/favicon.png',
     },
-    plugins: ['expo-location'],
+    plugins: ['expo-location', 'expo-secure-store'],
     extra: {
       eas: {
         projectId: 'e1afbee3-f38d-4c36-992d-7920574c3587',
