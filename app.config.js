@@ -1,12 +1,11 @@
-// Expo app config — values are loaded from .env at build/start time.
-// Copy .env.example to .env and fill in your own values.
-// See https://docs.expo.dev/guides/environment-variables/
+// Expo app config.
+// v0.2.1: switched from Google Maps to MapLibre + OpenFreeMap (no API key needed).
 
 module.exports = () => ({
   expo: {
     name: 'iNomad',
     slug: 'iNomad',
-    version: '0.2.0',
+    version: '0.2.1',
     orientation: 'portrait',
     icon: './assets/logo.png',
     userInterfaceStyle: 'light',
@@ -19,9 +18,6 @@ module.exports = () => ({
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.blastpop.iNomad',
-      config: {
-        googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || '',
-      },
       infoPlist: {
         NSBluetoothAlwaysUsageDescription:
           'iNomad utilise Bluetooth pour partager des spots avec des téléphones à proximité.',
@@ -43,12 +39,8 @@ module.exports = () => ({
         'android.permission.BLUETOOTH_CONNECT',
         'android.permission.BLUETOOTH_SCAN',
         'android.permission.NEARBY_WIFI_DEVICES',
+        'android.permission.INTERNET',
       ],
-      config: {
-        googleMaps: {
-          apiKey: process.env.GOOGLE_MAPS_API_KEY || '',
-        },
-      },
     },
     web: {
       favicon: './assets/favicon.png',
@@ -56,6 +48,7 @@ module.exports = () => ({
     plugins: [
       'expo-location',
       'expo-secure-store',
+      '@maplibre/maplibre-react-native',
       [
         './node_modules/expo-nearby-connections/app.plugin.js',
         {

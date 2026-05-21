@@ -8,7 +8,12 @@ import {
   Modal,
   Linking,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import {
+  Map,
+  Camera,
+  UserLocation,
+  Marker,
+} from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,21 +21,28 @@ import AddSpotModal from '../components/AddSpotModal';
 import { getSpots, saveSpot, deleteSpotById } from '../storage/asyncStorage';
 import { getReceivedSpots, deleteReceivedSpot } from '../storage/receivedSpots';
 
+// Free OSS vector tiles via OpenFreeMap (OpenStreetMap data, no API key, no tracking).
+// Swap to another MapLibre-compatible style URL if you want a different look.
+const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+
+const DEFAULT_ZOOM = 13;
+
 const ACTIVITY_COLORS = {
-  Peche: 'blue',
-  Camping: 'green',
+  Peche: '#1976d2',
+  Camping: '#388e3c',
   'Sentier 4 roues': '#8B4513',
-  'Sentier pédestre': '#40E0D0',
-  'Relais routier': '#9370DB',
-  'Descente de bateau': '#4682B4',
+  'Sentier pédestre': '#00897b',
+  'Relais routier': '#7b1fa2',
+  'Descente de bateau': '#0277bd',
 };
 
 function colorForActivity(activity) {
-  return ACTIVITY_COLORS[activity] || 'red';
+  return ACTIVITY_COLORS[activity] || '#e53935';
 }
 
 export default function MapScreen() {
-  const [region, setRegion] = useState(null);
+  const [userCoord, setUserCoord] = useState(null);
+  const [cameraCoord, setCameraCoord] = useState(null);
   const [spots, setSpots] = useState([]);
   const [received, setReceived] = useState([]);
   const [addingMode, setAddingMode] = useState(false);
@@ -39,7 +51,7 @@ export default function MapScreen() {
   const [selectedSpot, setSelectedSpot] = useState(null);
   const [spotModalVisible, setSpotModalVisible] = useState(false);
 
-  const mapRef = useRef(null);
+  const cameraRef = useRef(null);
 
   const refresh = async () => {
     setSpots(await getSpots());
@@ -54,17 +66,13 @@ export default function MapScreen() {
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
-      setRegion({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
+      const coord = [loc.coords.longitude, loc.coords.latitude];
+      setUserCoord(coord);
+      setCameraCoord(coord);
       await refresh();
     })();
   }, []);
 
-  // Reload when the screen regains focus (e.g. after importing peer spots).
   useFocusEffect(
     React.useCallback(() => {
       refresh();
@@ -73,19 +81,19 @@ export default function MapScreen() {
 
   const focusOnUserLocation = async () => {
     const loc = await Location.getCurrentPositionAsync({});
-    const next = {
-      latitude: loc.coords.latitude,
-      longitude: loc.coords.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    };
-    setRegion(next);
-    mapRef.current?.animateToRegion(next);
+    const coord = [loc.coords.longitude, loc.coords.latitude];
+    setUserCoord(coord);
+    cameraRef.current?.setCamera({
+      centerCoordinate: coord,
+      zoomLevel: DEFAULT_ZOOM,
+      animationDuration: 500,
+    });
   };
 
-  const handleMapPress = (e) => {
+  const handleMapPress = (event) => {
     if (!addingMode) return;
-    setNewSpotCoords(e.nativeEvent.coordinate);
+    const [longitude, latitude] = event.geometry.coordinates;
+    setNewSpotCoords({ latitude, longitude });
     setModalVisible(true);
     setAddingMode(false);
   };
@@ -116,14 +124,15 @@ export default function MapScreen() {
   };
 
   const openInGoogleMaps = (lat, lng) => {
-    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
+    Linking.openURL(`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`);
   };
 
   const navigateToLocation = (lat, lng) => {
-    Linking.openURL(`google.navigation:q=${lat},${lng}`);
+    // Use a geo: URI which any installed nav app (OSMAnd, Organic Maps, Google Maps, etc.) can handle
+    Linking.openURL(`geo:${lat},${lng}?q=${lat},${lng}`);
   };
 
-  if (!region) {
+  if (!cameraCoord) {
     return (
       <View style={styles.center}>
         <Text>Chargement de la carte…</Text>
@@ -133,42 +142,59 @@ export default function MapScreen() {
 
   return (
     <View style={styles.containerWithPadding}>
-      <MapView
-        provider={PROVIDER_GOOGLE}
-        ref={mapRef}
+      <Map
         style={styles.map}
-        region={region}
+        mapStyle={MAP_STYLE_URL}
         onPress={handleMapPress}
-        showsUserLocation
-        showsMyLocationButton={false}
-        showsCompass={false}
+        attributionEnabled
+        logoEnabled={false}
       >
+        <Camera
+          ref={cameraRef}
+          defaultSettings={{ centerCoordinate: cameraCoord, zoomLevel: DEFAULT_ZOOM }}
+        />
+        <UserLocation visible />
+
         {spots.map((spot) => (
           <Marker
             key={`own-${spot.id}`}
-            coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
-            pinColor={colorForActivity(spot.activity)}
-            onPress={() => {
+            id={`own-${spot.id}`}
+            coordinate={[spot.longitude, spot.latitude]}
+            onSelected={() => {
               setSelectedSpot(spot);
               setSpotModalVisible(true);
             }}
-          />
+          >
+            <View
+              style={[
+                styles.ownPin,
+                { backgroundColor: colorForActivity(spot.activity) },
+              ]}
+            />
+          </Marker>
         ))}
+
         {received.map((spot) => (
           <Marker
             key={`recv-${spot.id}`}
-            coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
-            onPress={() => {
+            id={`recv-${spot.id}`}
+            coordinate={[spot.longitude, spot.latitude]}
+            onSelected={() => {
               setSelectedSpot({ ...spot, isReceived: true });
               setSpotModalVisible(true);
             }}
           >
-            <View style={[styles.receivedPin, { backgroundColor: colorForActivity(spot.activity) }]}>
+            <View
+              style={[
+                styles.receivedPin,
+                { backgroundColor: colorForActivity(spot.activity) },
+              ]}
+            >
               <Ionicons name="star" size={14} color="#fff" />
             </View>
           </Marker>
         ))}
-      </MapView>
+      </Map>
 
       <View style={styles.footer}>
         <View style={styles.floatingButtons}>
@@ -241,7 +267,7 @@ export default function MapScreen() {
                 <TouchableOpacity
                   onPress={() => openInGoogleMaps(selectedSpot.latitude, selectedSpot.longitude)}
                 >
-                  <Text style={styles.mapActionText}>Ouvrir dans Maps</Text>
+                  <Text style={styles.mapActionText}>Voir sur OSM</Text>
                 </TouchableOpacity>
               </View>
 
@@ -291,6 +317,18 @@ const styles = StyleSheet.create({
   addButtonText: { color: 'white', fontSize: 28, fontWeight: 'bold' },
   addButtonTextTransparent: { color: '#2196f3' },
   addButtonTextRotated: { transform: [{ rotate: '45deg' }] },
+  ownPin: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
+  },
   receivedPin: {
     width: 26,
     height: 26,
@@ -300,7 +338,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
     shadowColor: '#000',
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
     elevation: 3,
